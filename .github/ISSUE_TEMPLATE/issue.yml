@@ -1,0 +1,44 @@
+name: Stablecoin Flow Issue
+description: Issue for Stablecoin Flow Analysis Project
+title: "[Type] Short description"
+labels: []
+
+body:
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Clear explanation of what will be done and why.
+    validations:
+      required: true
+
+  - type: input
+    id: related_links
+    attributes:
+      label: Blocked By / Related Issue or PR
+      description: Reference issue numbers or PR links if applicable.
+      placeholder: e.g. #3, #12, PR #5
+
+  - type: textarea
+    id: concerns
+    attributes:
+      label: Risks / Concerns
+      description: Potential blockers, technical risks, or uncertainties.
+
+  - type: input
+    id: expected_start
+    attributes:
+      label: Expected Start Date
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+
+  - type: input
+    id: expected_end
+    attributes:
+      label: Expected End Date
+      placeholder: YYYY-MM-DD
+    validations:
+      required: true
+
