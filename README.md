@@ -54,6 +54,7 @@ The work is organized into three main stages:
 - `feat/<issue-id>-<short-description>` – New functionality
 - `fix/<issue-id>-<short-description>` – Bug fixes
 - `refactor/<issue-id>-<short-description>` – Code improvements
+- `chore/<issue-id>-<short-description>` – Unimportant changes (e.g., formatting)
 
 All major work should be developed in a separate branch and merged into `main` after validation.
 
