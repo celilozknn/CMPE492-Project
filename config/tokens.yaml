@@ -1,0 +1,39 @@
+USDT:
+  symbol: USDT
+  decimals: 6
+  contracts:
+    ethereum: 0xdAC17F958D2ee523a2206206994597C13D831ec7
+    arbitrum: 0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9
+    polygon: 0xc2132D05D31c914a87C6611C10748AEb04B58e8f
+    avalanche: 0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7
+    optimism: 0x94b008aa00579c1307b0ef2c499ad98a8ce58e58
+
+USDC:
+  symbol: USDC
+  decimals: 6
+  contracts:
+    ethereum: 0xA0b86991c6218b36c1d19d4a2e9eb0ce3606eb48
+    arbitrum: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
+    polygon: 0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359
+    avalanche: 0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E
+    optimism: 0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85
+
+DAI:
+  symbol: DAI
+  decimals: 18
+  contracts:
+    ethereum: 0x6B175474E89094C44Da98b954EedeAC495271d0F
+    arbitrum: 0xda10009cbd5d07dd0cecc66161fc93d7c9000da1
+    polygon: 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063
+    avalanche: 0xd586E7F844cEa2F87f50152665BCbc2C279D8d70
+    optimism: 0xda10009cbd5d07dd0cecc66161fc93d7c9000da1
+
+XAUT:
+  symbol: XAUT
+  decimals: 6
+  contracts:
+    ethereum: 0x68749665FF8D2d112Fa859AA293F07A622782F38
+    arbitrum: null
+    polygon: null
+    avalanche: null
+    optimism: null

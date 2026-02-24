@@ -1,0 +1,29 @@
+ethereum:
+  name: Ethereum Mainnet
+  chain_id: 1
+  rpc_env: ETHEREUM_RPC_URL
+  explorer: https://etherscan.io
+
+arbitrum:
+  name: Arbitrum One
+  chain_id: 42161
+  rpc_env: ARBITRUM_RPC_URL
+  explorer: https://arbiscan.io
+
+polygon:
+  name: Polygon PoS
+  chain_id: 137
+  rpc_env: POLYGON_RPC_URL
+  explorer: https://polygonscan.com
+
+avalanche:
+  name: Avalanche C-Chain
+  chain_id: 43114
+  rpc_env: AVALANCHE_RPC_URL
+  explorer: https://snowtrace.io
+
+optimism:
+  name: Optimism
+  chain_id: 10
+  rpc_env: OPTIMISM_RPC_URL
+  explorer: https://optimistic.etherscan.io
