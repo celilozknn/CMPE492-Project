@@ -9,7 +9,7 @@ __pycache__/
 
 # Virtual environments
 venv/
-.env
+**/.env
 .envrc
 .venv/
 
@@ -53,3 +53,5 @@ dist/
 # Misc
 *.bak
 *.tmp
+**/misc/*
+**/debug/*
