@@ -10,6 +10,7 @@ DEBUG_FOLDER_PATH = ROOT_FOLDER / "debug"
 MISC_FOLDER_PATH = ROOT_FOLDER / "misc"
 DOCS_FOLDER_PATH = ROOT_FOLDER / "docs"
 SRC_FOLDER_PATH = ROOT_FOLDER / "src"
+OUTPUT_FOLDER_PATH = ROOT_FOLDER / "output"
 
 # Function to create folders
 def get_or_create_folder(path: Path) -> Path:
@@ -23,3 +24,4 @@ DEBUG_FOLDER_PATH = get_or_create_folder(DEBUG_FOLDER_PATH)
 MISC_FOLDER_PATH = get_or_create_folder(MISC_FOLDER_PATH)
 DOCS_FOLDER_PATH = get_or_create_folder(DOCS_FOLDER_PATH)
 SRC_FOLDER_PATH = get_or_create_folder(SRC_FOLDER_PATH)
+OUTPUT_FOLDER_PATH = get_or_create_folder(OUTPUT_FOLDER_PATH)
