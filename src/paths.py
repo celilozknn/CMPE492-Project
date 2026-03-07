@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # Root folder
-ROOT_FOLDER = Path(__file__).resolve().parent
+ROOT_FOLDER = Path(__file__).resolve().parent.parent
 
 # Folder paths
 CONFIG_FOLDER_PATH = ROOT_FOLDER / "config"

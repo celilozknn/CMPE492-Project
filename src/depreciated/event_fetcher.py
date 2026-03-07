@@ -9,7 +9,7 @@ from helpers import *
 
 dotenv.load_dotenv()
 
-API_KEY = os.getenv("API_KEY")
+ETHERSCAN_API_KEY = os.getenv("ETHERSCAN_API_KEY")
 
 SHOULD_DEBUG = True
 SHOULD_SAVE_TO_CSV = True
@@ -24,7 +24,7 @@ def fetch_events(network, chain_id, token, from_block, to_block):
     url = (
         f"https://api.etherscan.io/v2/api"
         f"?chainid={chain_id}"
-        f"&apikey={API_KEY}"
+        f"&apikey={ETHERSCAN_API_KEY}"
         f"&module=logs"
         f"&action=getLogs"
         f"&address={token_address}"
