@@ -14,15 +14,6 @@ from enums import *
 
 dotenv.load_dotenv()
 
-"""
-URLS:
-https://mainnet.infura.io/v3/{INFURA_API_KEY}
-https://polygon-mainnet.infura.io/v3/{INFURA_API_KEY}
-https://optimism-mainnet.infura.io/v3/{INFURA_API_KEY}
-https://arbitrum-mainnet.infura.io/v3/{INFURA_API_KEY}
-https://avalanche-mainnet.infura.io/v3/{INFURA_API_KEY}
-"""
-
 def fetch_logs(url, from_block_int, to_block_int, default_chunk_size, token_address, topics, token_map, output_folder, logger):
     chunk_size = default_chunk_size
     chunk_from_block_int = from_block_int
@@ -131,6 +122,7 @@ def fetch_chunked_logs(url, from_block_hex, to_block_hex, token_address, topics,
         f"Fetching logs | fromBlock={hex_to_int(params.get('fromBlock')):,} "
         f"toBlock={hex_to_int(params.get('toBlock')):,} "
         f"number of token addresses={len(params.get('address', []))} "
+        f"token addresses={params.get('address')} "
         f"topics={params.get('topics')}"
     )
     
@@ -178,71 +170,88 @@ def token_address_to_token_symbol_and_decimals(token_map: dict, token_address: s
     info = token_map[token_address_lower]
     return info["symbol"], info["decimals"]
 
-def decode_log(token_map: dict, log: dict, logger: logging.Logger) -> dict:
-    token_address = log["address"].lower()
-    token_symbol, token_decimals = token_address_to_token_symbol_and_decimals(token_map, token_address)
+def decode_log(token_map: dict, network: str, log: dict, logger: logging.Logger) -> dict:
     
-    if log.get("data") == "0x":
-        if len(log.get("topics", [])) > 3:
-            data = log["topics"][3]
-            logger.warning(f"Using topic[3] as fallback for log: {log}")
+    try: 
+        token_address = log["address"].lower()
+        token_symbol, token_decimals = token_address_to_token_symbol_and_decimals(token_map, token_address)
+        
+        if log.get("data") == "0x":
+            if len(log.get("topics", [])) > 3:
+                data = log["topics"][3]
+                logger.warning(f"Using topic[3] as fallback for log: {log}")
+            else:
+                data = "0x0"
+                logger.warning(f"Log has empty data and no topic[3], defaulting value to 0: {log}")
         else:
-            data = "0x0"
-            logger.warning(f"Log has empty data and no topic[3], defaulting value to 0: {log}")
-    else:
-        data = log["data"]
-        
-    return {
-        "log_index": int(log["logIndex"], 16),
-        "tx_index": int(log["transactionIndex"], 16),
-        "tx_hash": log["transactionHash"],
-        
-        "block_hash": log["blockHash"],
-        "block_number": int(log["blockNumber"], 16),
-        "block_timestamp": int(log["blockTimestamp"], 16),
+            data = log["data"]
+            
+        decoded =  {
+            "log_index": int(log["logIndex"], 16),
+            "tx_index": int(log["transactionIndex"], 16),
+            "tx_hash": log["transactionHash"],
+            
+            "block_hash": log["blockHash"],
+            "block_number": int(log["blockNumber"], 16),
+            "block_timestamp": int(log["blockTimestamp"], 16) if "blockTimestamp" in log else None,
 
-        "token_address": token_address,
-        "token_symbol": token_symbol,
+            "token_address": token_address,
+            "network": network,
+            "token_symbol": token_symbol,
 
-        "topic": log["topics"][0],
-        "from": ("0x" + log["topics"][1][-40:]).lower(),
-        "to": ("0x" + log["topics"][2][-40:]).lower(),
+            "topic": log["topics"][0],
+            "from": ("0x" + log["topics"][1][-40:]).lower(),
+            "to": ("0x" + log["topics"][2][-40:]).lower(),
+            
+            "raw_value": int(data, 16),
+            "value": int(data, 16) / (10 ** token_decimals),
+
+            "raw_log": log
+        }
+            
+        return decoded
+    except Exception as e:
+        logger.error(f"Error decoding log: {e}")
+        logger.error(f"Log data: {log}")
         
-        "raw_value": int(data, 16),
-        "value": int(data, 16) / (10 ** token_decimals),
-
-        "raw_log": log
-    }
 
 def main():
         
     ### CONFIGURE THE BLOCK RANGE ###
-    start_block = 24608000
-    end_block = 24608974
+    start_block = 148669200
+    end_block = 148669326
+    NETWORK = Networks.OPTIMISM
     #################################
     
-    logger = get_logger("InfuraEventFetcher")
+    logger = get_logger("InfuraEventFetcher")     
+    
+    INFURA_URL = get_infura_url(network=NETWORK)
 
-    INFURA_URL = get_infura_url()
+    # Base tokens
+    TOKENS = [
+        StableCoins.USDT,
+        StableCoins.USDC,
+        StableCoins.DAI,
+    ]
 
-    USDT_ADDRESS = get_token_address(network=Networks.ETHEREUM, token=StableCoins.USDT).lower()
-    USDC_ADDRESS = get_token_address(network=Networks.ETHEREUM, token=StableCoins.USDC).lower()
-    DAI_ADDRESS = get_token_address(network=Networks.ETHEREUM, token=StableCoins.DAI).lower()
-    XAUT_ADDRESS = get_token_address(network=Networks.ETHEREUM, token=StableCoins.XAUT).lower()
+    # Network specific tokens
+    if NETWORK == Networks.ETHEREUM:
+        TOKENS.append(StableCoins.XAUT)
 
-    USDT_DECIMALS = get_decimals(network=Networks.ETHEREUM, token=StableCoins.USDT)
-    USDC_DECIMALS = get_decimals(network=Networks.ETHEREUM, token=StableCoins.USDC)
-    DAI_DECIMALS = get_decimals(network=Networks.ETHEREUM, token=StableCoins.DAI)
-    XAUT_DECIMALS = get_decimals(network=Networks.ETHEREUM, token=StableCoins.XAUT)
+    TOKEN_MAPPING = {}
 
-    TOKEN_ADDRESSES = [USDT_ADDRESS, USDC_ADDRESS, DAI_ADDRESS, XAUT_ADDRESS]
+    for token in TOKENS:
+        address = get_token_address(network=NETWORK, token=token).lower()
+        decimals = get_decimals(network=NETWORK, token=token)
+
+        TOKEN_MAPPING[address] = {
+            "symbol": token.name,
+            "decimals": decimals
+        }
+
+    TOKEN_ADDRESSES = list(TOKEN_MAPPING.keys())
         
-    TOKEN_MAPPING = {
-        USDT_ADDRESS: {"symbol": "USDT", "decimals": USDT_DECIMALS},
-        USDC_ADDRESS: {"symbol": "USDC", "decimals": USDC_DECIMALS},
-        DAI_ADDRESS: {"symbol": "DAI", "decimals": DAI_DECIMALS},
-        XAUT_ADDRESS: {"symbol": "XAUT", "decimals": XAUT_DECIMALS},
-    }
+   
 
     TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
@@ -271,7 +280,7 @@ def main():
 
     with open(output_file_path, 'w') as f:
         logger.info(f"Decoding {len(decoded_logs)} logs")
-        decoded_logs = [decode_log(token_map=TOKEN_MAPPING, log=log, logger=logger) for log in decoded_logs]
+        decoded_logs = [decode_log(token_map=TOKEN_MAPPING, network=NETWORK.name, log=log, logger=logger) for log in decoded_logs]
         json.dump(decoded_logs, f, indent=4)
     
     logger.info(f"Saved {len(decoded_logs)} decoded logs to {output_file_path}")
