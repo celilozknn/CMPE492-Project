@@ -2,6 +2,7 @@ import requests
 import pandas as pd
 import time, os
 import dotenv
+import re
 import json
 
 from collections import Counter
@@ -22,24 +23,105 @@ https://arbitrum-mainnet.infura.io/v3/{INFURA_API_KEY}
 https://avalanche-mainnet.infura.io/v3/{INFURA_API_KEY}
 """
 
-def fetch_logs(url, from_block, to_block, token_address, topics, logger):
+def fetch_logs(url, from_block_int, to_block_int, default_chunk_size, token_address, topics, token_map, output_folder, logger):
+    chunk_size = default_chunk_size
+    chunk_from_block_int = from_block_int
+    all_logs = []
+    
+    # Progress tracking file
+    progress_file = output_folder / "fetch_progress.json"
+    completed_chunks = []
+    if progress_file.exists():
+        with open(progress_file, 'r') as f:
+            completed_chunks = json.load(f).get('completed_chunks', [])
+            logger.info(f"Resuming from progress file. {len(completed_chunks)} chunks already completed.")
+    
+    while chunk_from_block_int <= to_block_int:
+        chunk_to_block_int = min(chunk_from_block_int + chunk_size - 1, to_block_int)
+        chunk_range = f"{chunk_from_block_int}-{chunk_to_block_int}"
+        
+        # Skip if already completed
+        if chunk_range in completed_chunks:
+            logger.info(f"Skipping already completed chunk: {chunk_range}")
+            chunk_from_block_int = chunk_to_block_int + 1
+            continue
+        
+        logger.info(f"Fetching logs for block range {chunk_from_block_int:,} -> {chunk_to_block_int:,} (chunk size: {chunk_size})")
+        
+        try:
+            logs = fetch_chunked_logs(
+                url=url,
+                from_block_hex=int_to_hex(chunk_from_block_int),
+                to_block_hex=int_to_hex(chunk_to_block_int),
+                token_address=token_address,
+                topics=topics,
+                logger=logger
+            )
+
+            
+            all_logs.extend(logs)
+            completed_chunks.append(chunk_range)
+            
+            # Save progress
+            with open(progress_file, 'w') as f:
+                json.dump({'completed_chunks': completed_chunks}, f)
+            
+            logger.info(f"✓ Chunk {chunk_range}: {len(logs)} logs written")
+            chunk_size = default_chunk_size 
+            
+            chunk_from_block_int = chunk_to_block_int + 1
+            time.sleep(0.2)
+            
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"Error fetching chunk range {chunk_range}: {error_msg}")
+            
+            if "query returned more than 10000 results" in error_msg:
+                try:
+                    match = re.search(r'\[0x([0-9a-fA-F]+),\s*0x([0-9a-fA-F]+)\]', error_msg) # Parse Infura's suggested range
+                    if match:
+                        suggested_start = int(match.group(1), 16)
+                        suggested_end = int(match.group(2), 16)
+                        suggested_size = suggested_end - suggested_start + 1
+                        logger.info(f"Infura suggests: {suggested_start} to {suggested_end} ({suggested_size} blocks)")
+                        chunk_size = suggested_size
+                        
+                        # Check for impossible case (single block >10k logs)
+                        if chunk_from_block_int == suggested_start and chunk_to_block_int == suggested_end:
+                            logger.error(f"Range {chunk_range} has >10k logs! Skipping.")
+                            chunk_from_block_int = chunk_to_block_int + 1
+                            chunk_size = chunk_from_block_int  
+                    else:
+                        chunk_size = max(chunk_size // 10, 1)
+                except Exception:
+                    chunk_size = max(chunk_size // 10, 1)
+            else:
+                chunk_size = max(chunk_size // 2, 1)
+            
+            continue
+    
+    logger.info(f"Completed fetching {len(all_logs)} total logs across {len(completed_chunks)} chunks")
+
+    return all_logs
+
+def fetch_chunked_logs(url, from_block_hex, to_block_hex, token_address, topics, logger):
     """
     Fetch logs from Infura using eth_getLogs.
     Parameters:
         url (str): Infura endpoint URL.
-        from_block (str): Hex string or tag (e.g., 'latest').
-        to_block (str): Hex string or tag.
+        from_block_hex (str): Hex string or tag (e.g., 'latest').
+        to_block_hex (str): Hex string or tag.
         token_address (str or list): Token address or list of token addresses.
         topics (list): List of topic strings.
     Returns:
         List of log objects or error dict.
     """    
     params = {}
-    if from_block or to_block:
-        if from_block:
-            params['fromBlock'] = from_block
-        if to_block:
-            params['toBlock'] = to_block
+    if from_block_hex or to_block_hex:
+        if from_block_hex:
+            params['fromBlock'] = from_block_hex    
+        if to_block_hex:
+            params['toBlock'] = to_block_hex
     if token_address:
         params['address'] = token_address
     if topics:
@@ -72,6 +154,7 @@ def fetch_logs(url, from_block, to_block, token_address, topics, logger):
     )
     
     logger.info(f"[eth_getLogs] Status: {response.status_code}")
+    
     try:
         resp_json = response.json()
     except Exception as e:
@@ -84,8 +167,7 @@ def fetch_logs(url, from_block, to_block, token_address, topics, logger):
     
     logs = resp_json.get('result', [])
     logger.info(f"Received {len(logs)} logs from RPC")
-    if len(logs) > 9000:
-        logger.warning("Log count close to 10k limit. Consider reducing block chunk size.")
+    
     return logs
 
 def token_address_to_token_symbol_and_decimals(token_map: dict, token_address: str) -> tuple:
@@ -135,8 +217,8 @@ def decode_log(token_map: dict, log: dict, logger: logging.Logger) -> dict:
 def main():
         
     ### CONFIGURE THE BLOCK RANGE ###
-    start_block = int_to_hex(24608724)
-    end_block = int_to_hex(24608724)
+    start_block = 24608000
+    end_block = 24608974
     #################################
     
     logger = get_logger("InfuraEventFetcher")
@@ -169,15 +251,18 @@ def main():
     logger.info(f"Using Infura URL: {INFURA_URL}")
     logger.info(f"Tracking token addresses: {TOKEN_ADDRESSES}")
     logger.info(f"Tracking tokens: {[TOKEN_MAPPING[addr]['symbol'] for addr in TOKEN_ADDRESSES]}")
-    logger.info(f"Starting log fetch for block range {hex_to_int(start_block):,} -> {hex_to_int(end_block):,}")
+    logger.info(f"Starting log fetch for block range {start_block:,} -> {end_block:,}")
     
     decoded_logs = fetch_logs(
         url=INFURA_URL,
-        from_block=start_block,
-        to_block=end_block,
+        from_block_int=start_block,
+        to_block_int=end_block,
+        default_chunk_size=40, 
         token_address=TOKEN_ADDRESSES,
         topics=[TRANSFER_EVENT_TOPIC],
-        logger=logger,
+        token_map=TOKEN_MAPPING,
+        output_folder=OUTPUT_FOLDER_PATH,
+        logger=logger
     )
     
     now_utc = datetime.now(timezone.utc)
@@ -186,7 +271,7 @@ def main():
 
     with open(output_file_path, 'w') as f:
         logger.info(f"Decoding {len(decoded_logs)} logs")
-        decoded_logs = [decode_log(TOKEN_MAPPING, log, logger) for log in decoded_logs]
+        decoded_logs = [decode_log(token_map=TOKEN_MAPPING, log=log, logger=logger) for log in decoded_logs]
         json.dump(decoded_logs, f, indent=4)
     
     logger.info(f"Saved {len(decoded_logs)} decoded logs to {output_file_path}")
