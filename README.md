@@ -58,10 +58,44 @@ The work is organized into three main stages:
 
 All major work should be developed in a separate branch and merged into `main` after validation.
 
-## Status
+## Database
 
-Project initiated.  
-Currently defining architecture and data extraction approach.
+We use PostgreSQL 16 via Docker.
+
+### 1. Environment
+
+Create a `.env` file:
+
+```env
+POSTGRES_DB=<your_database_name>
+POSTGRES_USER=<your_database_user>
+POSTGRES_PASSWORD=<your_database_password>
+POSTGRES_PORT=<your_host_port>
+```
+
+### 2. Starting the Database
+
+Run the following command to start the PostgreSQL container:
+
+```bash 
+docker compose up -d
+```
+
+- This will create the database and user.
+- Uses a persistent Docker volume for data.
+
+### 3. Connecting to the Database
+
+Use the following command to connect to the database:
+
+```bash
+docker exec -it <container_name> psql -U <your_database_user> -d <your_database_name>
+```
+
+### 4. Creating Tables
+
+You should also create the necessary tables, which can be done via SQL commands. You can find sql scripts in the `sql` directory. 
+I didn't want to bother with ORM for now, so you can run raw SQL commands using the `psql` command line interface or any PostgreSQL client.
 
 ## Contact
 

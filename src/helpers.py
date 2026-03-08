@@ -87,19 +87,18 @@ def get_logger(name, level=logging.INFO):
 def get_infura_url(network: Networks):
     INFURA_API_KEY, _ = get_infura_key_and_secret()
 
-    if network == Networks.ETHEREUM:
-        url = f"https://mainnet.infura.io/v3/{INFURA_API_KEY}"
-    elif network == Networks.POLYGON:
-        url = f"https://polygon-mainnet.infura.io/v3/{INFURA_API_KEY}"
-    elif network == Networks.OPTIMISM:
-        url = f"https://optimism-mainnet.infura.io/v3/{INFURA_API_KEY}"
-    elif network == Networks.ARBITRUM:
-        url = f"https://arbitrum-mainnet.infura.io/v3/{INFURA_API_KEY}"       
-    elif network == Networks.AVALANCHE:
-        url = f"https://avalanche-mainnet.infura.io/v3/{INFURA_API_KEY}"
-    else:
+    NETWORK_URLS = {
+        Networks.ETHEREUM: "mainnet",
+        Networks.POLYGON: "polygon-mainnet",
+        Networks.OPTIMISM: "optimism-mainnet",
+        Networks.ARBITRUM: "arbitrum-mainnet",
+        Networks.AVALANCHE: "avalanche-mainnet",
+    }
+    
+    try:
+        return f"https://{NETWORK_URLS[network]}.infura.io/v3/{INFURA_API_KEY}"
+    except KeyError:
         raise ValueError(f"Unsupported network: {network.value}")
-    return url
 
 def get_infura_key_and_secret():
     INFURA_API_KEY = os.getenv("INFURA_API_KEY")
