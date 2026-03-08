@@ -15,7 +15,7 @@ from db import *
 
 dotenv.load_dotenv()
 
-def fetch_logs(url, from_block_int, to_block_int, default_chunk_size, token_address, topics, token_map, output_folder, logger):
+def fetch_logs(url, network, from_block_int, to_block_int, default_chunk_size, token_address, topics, token_map, output_folder, logger):
     chunk_size = default_chunk_size
     chunk_from_block_int = from_block_int
     all_logs = []
@@ -52,6 +52,15 @@ def fetch_logs(url, from_block_int, to_block_int, default_chunk_size, token_addr
 
             
             all_logs.extend(logs)
+            
+            progress = FetchProgress(
+                network=network,
+                chunk_start=chunk_from_block_int,
+                chunk_end=chunk_to_block_int,
+                log_count=len(logs)
+            )
+            insert_fetch_progress(progress)
+
             completed_chunks.append(chunk_range)
             
             # Save progress
@@ -220,7 +229,7 @@ def main():
         
     ### CONFIGURE THE BLOCK RANGE ###
     start_block = 24613832
-    end_block = 24613832
+    end_block = 24613840
     NETWORK = Networks.ETHEREUM
     #################################
     
@@ -263,6 +272,7 @@ def main():
     
     fetched_logs = fetch_logs(
         url=INFURA_URL,
+        network=NETWORK.name,
         from_block_int=start_block,
         to_block_int=end_block,
         default_chunk_size=40, 

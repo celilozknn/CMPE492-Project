@@ -6,6 +6,7 @@ import dotenv
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from paths import *
 from helpers import *
+from enums import *
 
 dotenv.load_dotenv()
 
@@ -87,7 +88,7 @@ def get_transfers(params: dict = None):
 # ----------------------------
 # FETCH PROGRESS
 # ----------------------------
-def insert_fetch_progress(progress: dict):
+def insert_fetch_progress(progress: FetchProgress):
     query = """
     INSERT INTO fetch_progress (
         network, chunk_start, chunk_end, log_count
@@ -96,35 +97,24 @@ def insert_fetch_progress(progress: dict):
     )
     ON CONFLICT (network, chunk_start, chunk_end) DO NOTHING;
     """
-    logger.info(
-        f"Inserting fetch progress: network: {progress['network']} "
-        f"chunk_start: {progress['chunk_start']} chunk_end: {progress['chunk_end']} "
-        f"log_count: {progress['log_count']}"
-    )
-    
+
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, progress)
+            cur.execute(query, progress.to_dict())
             if cur.rowcount == 0:
                 logger.warning(
-                    f"Fetch progress already exists, skipped: network {progress['network']}, "
-                    f"chunk_start {progress['chunk_start']}, chunk_end {progress['chunk_end']}"
+                    f"Fetch progress already exists, skipped: network {progress.network}, "
+                    f"chunk_start {progress.chunk_start}, chunk_end {progress.chunk_end}"
                 )
             else:
                 conn.commit()
                 logger.info(
-                    f"Inserted fetch progress: network {progress['network']}, "
-                    f"chunk_start {progress['chunk_start']}, chunk_end {progress['chunk_end']}"
+                    f"Inserted fetch progress: network {progress.network}, "
+                    f"chunk_start {progress.chunk_start}, chunk_end {progress.chunk_end}"
                 )
 
-
-def get_fetch_progress(params: dict = None):
-    """
-    Flexible read: pass a dict with any subset of column filters, e.g.
-    {"network": "ethereum", "chunk_start": 0}
-    Columns are: id, network, chunk_start, chunk_end, log_count, completed_at
-    """
-    query = "SELECT * FROM fetch_progress"
+def get_fetch_progress(params: dict = None) -> list[FetchProgress]:
+    query = "SELECT network, chunk_start, chunk_end, log_count, completed_at FROM fetch_progress"
     filters = []
     values = []
 
@@ -140,11 +130,23 @@ def get_fetch_progress(params: dict = None):
 
     logger.info(f"Fetching fetch progress with params: {params}")
     with get_connection() as conn:
-        with conn.cursor() as cur:
+        # Make sure you use RealDictCursor if you want dict-like rows
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(query, values)
-            return cur.fetchall()
-        
-        
+            rows = cur.fetchall()
+
+    progress_list = [
+        FetchProgress(
+            network=row['network'],
+            chunk_start=row['chunk_start'],
+            chunk_end=row['chunk_end'],
+            log_count=row['log_count'],
+            completed_at=row['completed_at']
+        )
+        for row in rows
+    ]
+    return progress_list
+    
 if __name__ == "__main__":
     transfer_data = {
         "log_index": 12,
@@ -163,10 +165,12 @@ if __name__ == "__main__":
         "value": 149768.370538
     }
 
-    insert_transfer(transfer_data)
+    #insert_transfer(transfer_data)
     
-    print(get_transfers({"network": "OPTIMISM", "token_symbol": "USDC"}))
+    #print(get_transfers({"network": "OPTIMISM", "token_symbol": "USDC"}))
 
-    insert_fetch_progress({"network": "ethereum", "chunk_start": 900, "chunk_end": 1200, "log_count": 70})
+    insert_fetch_progress(FetchProgress(network=Networks.ETHEREUM.name, chunk_start=1200, chunk_end=1600, log_count=70))
 
-    print(get_fetch_progress({"network": "ethereum"}))
+    progresses = get_fetch_progress({"network": Networks.ETHEREUM.name})
+    for p in progresses:
+        print(p)
