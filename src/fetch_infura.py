@@ -262,7 +262,7 @@ def main():
     logger.info(f"Tracking tokens: {[TOKEN_MAPPING[addr]['symbol'] for addr in TOKEN_ADDRESSES]}")
     logger.info(f"Starting log fetch for block range {start_block:,} -> {end_block:,}")
     
-    decoded_logs = fetch_logs(
+    fetched_logs = fetch_logs(
         url=INFURA_URL,
         from_block_int=start_block,
         to_block_int=end_block,
@@ -279,13 +279,13 @@ def main():
     output_file_path = OUTPUT_FOLDER_PATH / f"infura_logs_{ts}.json"
 
     with open(output_file_path, 'w') as f:
-        logger.info(f"Decoding {len(decoded_logs)} logs")
-        decoded_logs = [decode_log(token_map=TOKEN_MAPPING, network=NETWORK.name, log=log, logger=logger) for log in decoded_logs]
-        json.dump(decoded_logs, f, indent=4)
+        logger.info(f"Decoding {len(fetched_logs)} logs")
+        fetched_logs = [decode_log(token_map=TOKEN_MAPPING, network=NETWORK.name, log=log, logger=logger) for log in fetched_logs]
+        json.dump(fetched_logs, f, indent=4)
     
-    logger.info(f"Saved {len(decoded_logs)} decoded logs to {output_file_path}")
+    logger.info(f"Saved {len(fetched_logs)} decoded logs to {output_file_path}")
     
-    token_counts = Counter([log["token_symbol"] for log in decoded_logs])
+    token_counts = Counter([log["token_symbol"] for log in fetched_logs])
     logger.info(f"Token transfer summary: {dict(token_counts)}")
     
     logger.info("Run completed successfully")
