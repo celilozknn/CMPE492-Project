@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from helpers import *
 from paths import *
 from enums import *
+from db import *
 
 dotenv.load_dotenv()
 
@@ -159,7 +160,7 @@ def fetch_chunked_logs(url, from_block_hex, to_block_hex, token_address, topics,
     
     logs = resp_json.get('result', [])
     logger.info(f"Received {len(logs)} logs from RPC")
-    
+        
     return logs
 
 def token_address_to_token_symbol_and_decimals(token_map: dict, token_address: str) -> tuple:
@@ -195,9 +196,9 @@ def decode_log(token_map: dict, network: str, log: dict, logger: logging.Logger)
             "block_number": int(log["blockNumber"], 16),
             "block_timestamp": int(log["blockTimestamp"], 16) if "blockTimestamp" in log else None,
 
-            "token_address": token_address,
             "network": network,
             "token_symbol": token_symbol,
+            "token_address": token_address,
 
             "topic": log["topics"][0],
             "from": ("0x" + log["topics"][1][-40:]).lower(),
@@ -218,9 +219,9 @@ def decode_log(token_map: dict, network: str, log: dict, logger: logging.Logger)
 def main():
         
     ### CONFIGURE THE BLOCK RANGE ###
-    start_block = 148669200
-    end_block = 148669326
-    NETWORK = Networks.OPTIMISM
+    start_block = 24613832
+    end_block = 24613832
+    NETWORK = Networks.ETHEREUM
     #################################
     
     logger = get_logger("InfuraEventFetcher")     
@@ -250,8 +251,6 @@ def main():
         }
 
     TOKEN_ADDRESSES = list(TOKEN_MAPPING.keys())
-        
-   
 
     TRANSFER_EVENT_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
@@ -281,6 +280,7 @@ def main():
     with open(output_file_path, 'w') as f:
         logger.info(f"Decoding {len(fetched_logs)} logs")
         fetched_logs = [decode_log(token_map=TOKEN_MAPPING, network=NETWORK.name, log=log, logger=logger) for log in fetched_logs]
+                
         json.dump(fetched_logs, f, indent=4)
     
     logger.info(f"Saved {len(fetched_logs)} decoded logs to {output_file_path}")
