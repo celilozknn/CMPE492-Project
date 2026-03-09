@@ -53,7 +53,8 @@ def insert_transfer(transfer: dict):
                 conn.commit()
                 logger.debug(f"Inserted transfer: {transfer['network']}, Block:{transfer['block_number']}, Log Index: {transfer['log_index']}, Tx: {transfer['tx_hash']},")
 
-def insert_transfers_batch(transfers: list[dict], batch_size: int = 1000):
+# TODO: number of skipped is broken, although inserted says they are not.
+def insert_transfers_batch(transfers: list[dict], batch_size: int):
     if not transfers:
         return
 
@@ -63,7 +64,8 @@ def insert_transfers_batch(transfers: list[dict], batch_size: int = 1000):
         block_timestamp, network, token_symbol, token_address,
         topic, from_address, to_address, raw_value, value
     ) VALUES %s
-    ON CONFLICT (tx_hash, log_index, network) DO NOTHING;
+    ON CONFLICT (tx_hash, log_index, network) DO NOTHING
+    RETURNING tx_hash;
     """
 
     def to_tuple(t):
@@ -78,8 +80,16 @@ def insert_transfers_batch(transfers: list[dict], batch_size: int = 1000):
             for i in range(0, len(transfers), batch_size):
                 batch = transfers[i:i + batch_size]
                 execute_values(cur, query, [to_tuple(t) for t in batch])
+                
+                inserted_rows = cur.fetchall()
+                inserted = len(inserted_rows)
+                skipped = len(batch) - inserted
+                        
                 conn.commit()
-                logger.debug(f"Inserted batch of {len(batch)} transfers")
+                if skipped > 0:
+                    logger.warning(f"Batch insert: {inserted} inserted, {skipped} skipped due to conflict.")
+                else:
+                    logger.info(f"Batch size: {len(batch)} | Inserted: {inserted} | Skipped due to conflict: {skipped}")            
                 
 def get_transfers(params: dict = None):
     """
