@@ -1,7 +1,7 @@
 import sys, os
 import psycopg2
-from psycopg2.extras import RealDictCursor
 import dotenv
+from psycopg2.extras import RealDictCursor, execute_values 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from paths import *
@@ -44,9 +44,6 @@ def insert_transfer(transfer: dict):
     )
     ON CONFLICT (tx_hash, log_index, network) DO NOTHING;
     """
-    logger.info(f"Inserting transfer: {transfer['tx_hash']} log_index: {transfer['log_index']} "
-                 f"network: {transfer['network']}")
-    
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(query, transfer)
@@ -54,9 +51,36 @@ def insert_transfer(transfer: dict):
                 logger.warning(f"Transfer already exists, skipped: {transfer['tx_hash']}")
             else:
                 conn.commit()
-                logger.info(f"Inserted transfer: {transfer['tx_hash']}")
+                logger.debug(f"Inserted transfer: {transfer['network']}, Block:{transfer['block_number']}, Log Index: {transfer['log_index']}, Tx: {transfer['tx_hash']},")
 
+def insert_transfers_batch(transfers: list[dict], batch_size: int = 1000):
+    if not transfers:
+        return
 
+    query = """
+    INSERT INTO transfers (
+        log_index, tx_index, tx_hash, block_hash, block_number,
+        block_timestamp, network, token_symbol, token_address,
+        topic, from_address, to_address, raw_value, value
+    ) VALUES %s
+    ON CONFLICT (tx_hash, log_index, network) DO NOTHING;
+    """
+
+    def to_tuple(t):
+        return (
+            t["log_index"], t["tx_index"], t["tx_hash"], t["block_hash"], t["block_number"],
+            t["block_timestamp"], t["network"], t["token_symbol"], t["token_address"],
+            t["topic"], t["from"], t["to"], t["raw_value"], t["value"]
+        )
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            for i in range(0, len(transfers), batch_size):
+                batch = transfers[i:i + batch_size]
+                execute_values(cur, query, [to_tuple(t) for t in batch])
+                conn.commit()
+                logger.debug(f"Inserted batch of {len(batch)} transfers")
+                
 def get_transfers(params: dict = None):
     """
     Flexible read: pass a dict with any subset of column filters, e.g.
@@ -108,7 +132,7 @@ def insert_fetch_progress(progress: FetchProgress):
                 )
             else:
                 conn.commit()
-                logger.info(
+                logger.debug(
                     f"Inserted fetch progress: network {progress.network}, "
                     f"chunk_start {progress.chunk_start}, chunk_end {progress.chunk_end}"
                 )
@@ -146,31 +170,107 @@ def get_fetch_progress(params: dict = None) -> list[FetchProgress]:
         for row in rows
     ]
     return progress_list
-    
+
+
+
+# ----------------------------
+# UTILITIES
+# ----------------------------
+def get_latest_processed_block_from_db(network: Networks) -> int | None:
+    """
+    Returns the highest block_number processed for a given network
+    from the transfers table.
+    """
+    query = """
+    SELECT MAX(block_number) AS latest_block
+    FROM transfers
+    WHERE network = %s;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (network.name,))
+            row = cur.fetchone()
+
+    if row and row["latest_block"] is not None:
+        logger.info(f"Latest processed block in DB for {network}: {row['latest_block']:,}")
+        return row["latest_block"]
+    else:
+        logger.error(f"No processed blocks found for network {network}")
+        raise ValueError(f"No processed blocks found for network {network}")
+
+def execute_sql_folder():
+    """
+    Executes all .sql files in the given folder in alphabetical order.
+    """
+    if not SQL_FOLDER_PATH.exists() or not SQL_FOLDER_PATH.is_dir():
+        logger.error(f"SQL folder does not exist: {SQL_FOLDER_PATH}")
+        return
+
+    # Fetch all .sql files, sorted alphabetically
+    sql_files = sorted(SQL_FOLDER_PATH.glob("*.sql"))
+    if not sql_files:
+        logger.warning(f"No .sql files found in folder: {SQL_FOLDER_PATH}")
+        return
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            for sql_file in sql_files:
+                sql_content = sql_file.read_text()
+                try:
+                    cur.execute(sql_content)
+                    conn.commit()
+                    logger.info(f"Executed {sql_file.name} successfully")
+                except Exception as e:
+                    conn.rollback()
+                    logger.error(f"Error executing {sql_file.name}: {e}")
+                    raise
+                
+def destroy_all_tables_and_indexes(schema: str = "public"):
+    """
+    Drops all tables and dependent indexes in the given schema.
+    WARNING: This will permanently delete ALL data in the schema!
+    """
+    fetch_tables_sql = """
+    SELECT table_name
+    FROM information_schema.tables
+    WHERE table_schema = %s
+      AND table_type = 'BASE TABLE';
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            # Fetch all tables in the schema
+            cur.execute(fetch_tables_sql, (schema,))
+            tables = [row["table_name"] for row in cur.fetchall()]
+
+            if not tables:
+                logger.info(f"No tables found in schema '{schema}'. Nothing to drop.")
+                return
+
+            # Drop all tables dynamically
+            drop_sql = "DROP TABLE IF EXISTS " + ", ".join(f'"{t}"' for t in tables) + " CASCADE;"
+            cur.execute(drop_sql)
+            conn.commit()
+            logger.warning(f"Dropped all tables and dependent indexes in schema '{schema}': {tables}")
+                              
+def reset_tables():
+    """
+    Deletes all data from tables and resets auto-increment IDs.
+    WARNING: This will permanently delete all data in the tables!
+    """
+    query = """
+    TRUNCATE TABLE
+        transfers,
+        fetch_progress
+    RESTART IDENTITY CASCADE;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            conn.commit()
+            logger.warning("All tables reset: transfers, fetch_progress")
+            
 if __name__ == "__main__":
-    transfer_data = {
-        "log_index": 12,
-        "tx_index": 1,
-        "tx_hash": "0x0c317b940c94ee2d4e2ab309f515db3d1292dbf47cad309ee747db6f37fe1539",
-        "block_hash": "0xb557b6e76da0afb08e85f455e0aa5c8ea9ecdea3e24982822bdea1789b6e7b4f",
-        "block_number": 148669200,
-        "block_timestamp": None,
-        "network": "OPTIMISM",
-        "token_symbol": "USDC",
-        "token_address": "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
-        "topic": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
-        "from_address": "0x478946bcd4a5a22b316470f5486fafb928c0ba25",  # mapped from "from"
-        "to_address": "0x63f8d4000ba6fe867dcb581eaa20a1bc89dcc15e",   # mapped from "to"
-        "raw_value": 149768370538,
-        "value": 149768.370538
-    }
-
-    #insert_transfer(transfer_data)
-    
-    #print(get_transfers({"network": "OPTIMISM", "token_symbol": "USDC"}))
-
-    insert_fetch_progress(FetchProgress(network=Networks.ETHEREUM.name, chunk_start=1200, chunk_end=1600, log_count=70))
-
-    progresses = get_fetch_progress({"network": Networks.ETHEREUM.name})
-    for p in progresses:
-        print(p)
+    execute_sql_folder()
