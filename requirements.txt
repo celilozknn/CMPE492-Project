@@ -4,3 +4,4 @@ dotenv
 pyyaml
 psycopg2-binary 
 sqlalchemy
+click

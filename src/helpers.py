@@ -83,7 +83,27 @@ def get_logger(name, level=logging.INFO):
 
     return logger
 
-### INFURA HELPERS START ###
+def pretty_seconds(seconds: float) -> str:
+    """
+    Convert a number of seconds to a human-readable string.
+
+    Examples:
+        45      -> "45s"
+        125     -> "2m 5s"
+        3675    -> "1h 1m 15s"
+    """
+    seconds = int(seconds)
+    hours, rem = divmod(seconds, 3600)
+    minutes, sec = divmod(rem, 60)
+    parts = []
+    if hours > 0:
+        parts.append(f"{hours}h")
+    if minutes > 0 or hours > 0:
+        parts.append(f"{minutes}m")
+    parts.append(f"{sec}s")
+    return " ".join(parts)
+
+### INFURA FETCHER CLIENT HELPERS START ###
 def get_infura_url(network: Networks):
     INFURA_API_KEY, _ = get_infura_key_and_secret()
 
@@ -134,4 +154,4 @@ def token_address_to_token_symbol_and_decimals(token_map: dict, token_address: s
     
     info = token_map[token_address_lower]
     return info["symbol"], info["decimals"]
-### INFURA HELPERS END ###
+### INFURA FETCHER CLIENT HELPERS END ###
