@@ -15,28 +15,47 @@ from db import *
 
 dotenv.load_dotenv()
 
+def get_latest_block(network: Networks, logger):
+    """
+    Fetch the latest block number from the RPC endpoint.
+    """
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "eth_blockNumber",
+        "params": [],
+        "id": 1
+    }
+
+    auth = get_infura_auth()
+    headers = get_infura_headers()
+
+    response = requests.post(
+        url=get_infura_url(network=network),
+        data=json.dumps(payload),
+        headers=headers,
+        auth=auth
+    )
+
+    resp_json = response.json()
+
+    if "error" in resp_json:
+        raise Exception(resp_json["error"]["message"])
+
+    latest_block_hex = resp_json["result"]
+    latest_block_int = int(latest_block_hex, 16)
+
+    logger.info(f"Latest block: {latest_block_int:,}")
+
+    return latest_block_int
+
 def fetch_logs(url, network, from_block_int, to_block_int, default_chunk_size, token_address, topics, token_map, output_folder, logger):
     chunk_size = default_chunk_size
     chunk_from_block_int = from_block_int
     all_logs = []
-    
-    # Progress tracking file
-    progress_file = output_folder / "fetch_progress.json"
-    completed_chunks = []
-    if progress_file.exists():
-        with open(progress_file, 'r') as f:
-            completed_chunks = json.load(f).get('completed_chunks', [])
-            logger.info(f"Resuming from progress file. {len(completed_chunks)} chunks already completed.")
-    
+
     while chunk_from_block_int <= to_block_int:
         chunk_to_block_int = min(chunk_from_block_int + chunk_size - 1, to_block_int)
         chunk_range = f"{chunk_from_block_int}-{chunk_to_block_int}"
-        
-        # Skip if already completed
-        if chunk_range in completed_chunks:
-            logger.info(f"Skipping already completed chunk: {chunk_range}")
-            chunk_from_block_int = chunk_to_block_int + 1
-            continue
         
         logger.info(f"Fetching logs for block range {chunk_from_block_int:,} -> {chunk_to_block_int:,} (chunk size: {chunk_size})")
         
@@ -49,7 +68,6 @@ def fetch_logs(url, network, from_block_int, to_block_int, default_chunk_size, t
                 topics=topics,
                 logger=logger
             )
-
             
             all_logs.extend(logs)
             
@@ -60,12 +78,6 @@ def fetch_logs(url, network, from_block_int, to_block_int, default_chunk_size, t
                 log_count=len(logs)
             )
             insert_fetch_progress(progress)
-
-            completed_chunks.append(chunk_range)
-            
-            # Save progress
-            with open(progress_file, 'w') as f:
-                json.dump({'completed_chunks': completed_chunks}, f)
             
             logger.info(f"✓ Chunk {chunk_range}: {len(logs)} logs written")
             chunk_size = default_chunk_size 
@@ -101,7 +113,7 @@ def fetch_logs(url, network, from_block_int, to_block_int, default_chunk_size, t
             
             continue
     
-    logger.info(f"Completed fetching {len(all_logs)} total logs across {len(completed_chunks)} chunks")
+    logger.info(f"Completed fetching {len(all_logs)} logs for block range {from_block_int:,} -> {to_block_int:,}")
 
     return all_logs
 
@@ -172,14 +184,6 @@ def fetch_chunked_logs(url, from_block_hex, to_block_hex, token_address, topics,
         
     return logs
 
-def token_address_to_token_symbol_and_decimals(token_map: dict, token_address: str) -> tuple:
-    token_address_lower = token_address.lower()
-    if token_address_lower not in token_map:
-        raise KeyError(f"Token address not found in token_map: {token_address}")
-    
-    info = token_map[token_address_lower]
-    return info["symbol"], info["decimals"]
-
 def decode_log(token_map: dict, network: str, log: dict, logger: logging.Logger) -> dict:
     
     try: 
@@ -226,14 +230,15 @@ def decode_log(token_map: dict, network: str, log: dict, logger: logging.Logger)
         
 
 def main():
-        
-    ### CONFIGURE THE BLOCK RANGE ###
-    start_block = 24613832
-    end_block = 24613840
+    start_time = time.time()
+    logger = get_logger("InfuraEventFetcher")     
+    
+    ### CONFIGURE THE NETWORK ###
     NETWORK = Networks.ETHEREUM
     #################################
-    
-    logger = get_logger("InfuraEventFetcher")     
+
+    start_block = get_latest_processed_block_from_db(network=NETWORK) + 1
+    end_block = get_latest_block(network=NETWORK, logger=logger)
     
     INFURA_URL = get_infura_url(network=NETWORK)
 
@@ -287,19 +292,32 @@ def main():
     ts = now_utc.strftime("%Y%m%d_%H%M%S") # gives UTC not Istanbul, "20260308_205135"
     output_file_path = OUTPUT_FOLDER_PATH / f"infura_logs_{ts}.json"
 
-    with open(output_file_path, 'w') as f:
-        logger.info(f"Decoding {len(fetched_logs)} logs")
-        fetched_logs = [decode_log(token_map=TOKEN_MAPPING, network=NETWORK.name, log=log, logger=logger) for log in fetched_logs]
-                
-        json.dump(fetched_logs, f, indent=4)
+    fetched_logs = [decode_log(token_map=TOKEN_MAPPING, network=NETWORK.name, log=log, logger=logger) for log in fetched_logs]
     
-    logger.info(f"Saved {len(fetched_logs)} decoded logs to {output_file_path}")
+    token_counts = Counter()
     
-    token_counts = Counter([log["token_symbol"] for log in fetched_logs])
+    log_count = len(fetched_logs)
+    batch_size = 10000
+    
+    for batch in range(0, log_count, batch_size):
+        batch_logs = fetched_logs[batch:batch+batch_size]
+        
+        insert_transfers_batch(batch_logs)
+    
+        token_counts.update(log["token_symbol"] for log in batch_logs)
+        
+        batch_name = f"batch_{batch//batch_size + 1}"
+        batch_file_path = OUTPUT_FOLDER_PATH / f"infura_logs_{ts}_{batch_name}.json"
+        
+        with open(batch_file_path, 'w') as f:
+            json.dump(batch_logs, f, indent=4)
+            
+        logger.info(f"Saved batch of {len(batch_logs)} decoded logs to {batch_file_path}")
+    
+    end_time = time.time()
+    elapsed_time = end_time - start_time
     logger.info(f"Token transfer summary: {dict(token_counts)}")
-    
-    logger.info("Run completed successfully")
-
+    logger.info(f"Run completed successfully in {elapsed_time:.2f} seconds. {start_time} - {end_time}. Total logs fetched: {log_count}.")
 
 if __name__ == "__main__":
     main()

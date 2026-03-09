@@ -126,4 +126,12 @@ def validate_infura_api_credentials(logger):
     if not INFURA_API_SECRET:
         logger.error("INFURA_API_SECRET not found in environment variables")
         raise ValueError("INFURA_API_SECRET not found in environment variables")
+    
+def token_address_to_token_symbol_and_decimals(token_map: dict, token_address: str) -> tuple:
+    token_address_lower = token_address.lower()
+    if token_address_lower not in token_map:
+        raise KeyError(f"Token address not found in token_map: {token_address}")
+    
+    info = token_map[token_address_lower]
+    return info["symbol"], info["decimals"]
 ### INFURA HELPERS END ###
