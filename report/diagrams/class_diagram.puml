@@ -1,0 +1,79 @@
+@startuml
+title Blockchain Stablecoin Fetch System - Class Diagram
+
+' Enums
+class Networks {
+    +ETHEREUM
+    +POLYGON
+    +OPTIMISM
+    +ARBITRUM
+    +AVALANCHE
+}
+
+class StableCoins {
+    +USDT
+    +USDC
+    +DAI
+    +XAUT
+}
+
+' Dataclasses / Tables
+class FetchProgress {
+    -network: str
+    -chunk_start: int
+    -chunk_end: int
+    -log_count: int
+    -completed_at: datetime
+    +to_dict(): dict
+}
+
+class Transfers {
+    -tx_hash: str
+    -log_index: int
+    -block_number: int
+    -block_hash: str
+    -from_address: str
+    -to_address: str
+    -value: float
+    -raw_value: int
+    -token_symbol: str
+    -token_address: str
+    +unique_constraint(tx_hash, log_index, network)
+}
+
+' Helpers module
+class Helpers {
+    +get_token_address(network, token)
+    +get_decimals(network, token)
+    +get_chain_id(network)
+    +hex_to_int(value)
+    +int_to_hex(value)
+    +is_erc20_transfer(log, debug)
+    +get_logger(name, level)
+    +pretty_seconds(seconds)
+}
+
+' Fetcher module
+class FetcherClient {
+    +get_latest_block(network, logger)
+    +fetch_logs(url, from_block, to_block, token_address, topics, logger)
+    +decode_log(token_map, network, log, logger)
+    +run_fetcher(network, start_block, end_block, request_step)
+}
+
+' Database module
+class DB {
+    +insert_transfers_batch(decoded_logs, batch_size)
+    +insert_fetch_progress(progress)
+    +get_latest_processed_block_from_db(network)
+}
+
+' Relationships
+FetcherClient --> Helpers : uses
+FetcherClient --> Networks : reads
+FetcherClient --> StableCoins : reads
+FetcherClient --> DB : writes
+DB --> FetchProgress : stores
+DB --> Transfers : stores
+
+@enduml

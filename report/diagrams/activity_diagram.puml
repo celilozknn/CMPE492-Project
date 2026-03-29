@@ -1,0 +1,25 @@
+@startuml
+title ERC-20 Transfer Fetch - Activity Diagram
+start
+:Receive CLI parameters;
+if (Auto mode?) then (yes)
+    :Determine start/end blocks from DB and RPC;
+else (manual)
+    :Use provided start/end blocks;
+endif
+repeat
+    :Request eth_getLogs for token addresses;
+    :Decode logs;
+    :Normalize transfer data;
+    :Insert batch into PostgreSQL (conflict-safe);
+    :Write chunk metadata to fetch_progress;
+    if (More blocks to fetch?) then (yes)
+        if (Result set > 10k logs?) then (yes)
+            :Halve chunk size;
+        endif
+    else (no)
+        stop
+    endif
+repeat while (more blocks)
+stop
+@enduml

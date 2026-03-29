@@ -1,0 +1,36 @@
+@startuml
+title Module Diagram: Project Structure
+
+package "CLI Layer" {
+    class CLI
+    class "commands.fetch" as FetchCommand
+}
+
+package "Fetcher Layer" {
+    class FetcherClient
+}
+
+package "Database Layer" {
+    class DB
+}
+
+package "Helpers" {
+    class Helpers
+}
+
+package "Enums & Data" {
+    class Networks
+    class StableCoins
+    class FetchProgress
+}
+
+CLI --> FetchCommand
+FetchCommand --> FetcherClient
+FetcherClient --> DB
+FetcherClient --> Helpers
+DB --> Helpers
+FetcherClient --> Networks
+FetcherClient --> StableCoins
+DB --> FetchProgress
+
+@enduml

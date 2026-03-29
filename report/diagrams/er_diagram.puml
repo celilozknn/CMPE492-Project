@@ -1,0 +1,33 @@
+@startuml
+title Blockchain Stablecoin Flow - ER Diagram
+
+!define Table(name,desc) class name as "name\n<desc>" << (T,#FFAAAA) >>
+!define PK(field) <u>field</u>
+
+' Tables
+Table(transfers, "ERC-20 Transfer Events") {
+    PK(tx_hash)
+    PK(log_index)
+    PK(block_number)
+    block_hash
+    from_address
+    to_address
+    value
+    raw_value
+    token_symbol
+    token_address
+    network
+}
+
+Table(fetch_progress, "Processed Chunk Ranges") {
+    PK(network)
+    PK(chunk_start)
+    PK(chunk_end)
+    log_count
+    completed_at
+}
+
+' Relationships
+transfers -- fetch_progress : belongs_to [network]
+
+@enduml
