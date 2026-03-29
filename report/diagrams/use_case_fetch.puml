@@ -1,0 +1,23 @@
+@startuml
+title Blockchain Stablecoin Flow - Use Case Diagram
+
+left to right direction
+skinparam packageStyle rectangle
+
+actor User
+actor Analyst
+
+rectangle "Stablecoin Transfer Fetch System" {
+    usecase "Fetch Latest Data" as UC1
+    usecase "Fetch Custom Interval" as UC2
+    usecase "Resume After Failure" as UC3
+    usecase "Export for Analysis" as UC4
+}
+
+User --> UC1
+User --> UC2
+UC3 --> UC1 : extends
+UC3 --> UC2 : extends
+Analyst --> UC4
+
+@enduml

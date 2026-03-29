@@ -1,0 +1,18 @@
+@startuml
+title ERC-20 Transfer Fetch - Sequence Diagram
+actor User
+participant CLI
+participant Fetcher
+participant RPC
+participant PostgreSQL
+
+User -> CLI: run fetch command
+CLI -> CLI: Parse parameters
+CLI -> Fetcher: fetch_logs(network, start, end)
+Fetcher -> RPC: eth_getLogs request
+RPC --> Fetcher: logs response
+Fetcher -> CLI: decoded & normalized logs
+CLI -> PostgreSQL: insert batch (conflict-safe)
+CLI -> PostgreSQL: update fetch_progress
+CLI --> User: fetch complete
+@enduml

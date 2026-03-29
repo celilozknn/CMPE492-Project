@@ -1,0 +1,26 @@
+@startuml
+title Blockchain Stablecoin Fetch System - Deployment Diagram
+
+actor Developer
+actor Scheduler
+
+node "Developer Machine / CI" {
+    node "CLI (src/cli.py)" 
+    node "Fetcher Client (src/fetcher_client.py)"
+}
+
+node "PostgreSQL Container" {
+    database "Transfers & FetchProgress Tables"
+}
+
+cloud "Infura / RPC Endpoint" {
+    [Ethereum / Polygon / Other Networks]
+}
+
+Developer --> "CLI (src/cli.py)" : run fetch command
+"CLI (src/cli.py)" --> "Fetcher Client (src/fetcher_client.py)" : execute fetch logic
+"Fetcher Client (src/fetcher_client.py)" --> "Infura / RPC Endpoint" : eth_getLogs
+"Fetcher Client (src/fetcher_client.py)" --> "PostgreSQL Container" : insert logs & progress
+Scheduler --> "CLI (src/cli.py)" : periodic scheduled fetch
+
+@enduml

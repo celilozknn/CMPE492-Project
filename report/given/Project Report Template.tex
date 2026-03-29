@@ -1,0 +1,440 @@
+\documentclass[a4paper,12pt]{report}
+\usepackage{styles/fbe_tez}
+\usepackage[utf8x]{inputenc} % To use Unicode (e.g. Turkish) characters
+\renewcommand{\labelenumi}{(\roman{enumi})}
+\usepackage{amsmath, amsthm, amssymb}
+ % Some extra symbols
+\usepackage[bottom]{footmisc}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{graphicx}
+\usepackage{longtable}
+\graphicspath{{figures/}} % Graphics will be here
+
+\usepackage{multirow}
+\usepackage{subfigure}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\begin{document}
+
+% Title Page
+\title{CMPE 492 \\ Stablecoin Flow Analysis on Blockchains}
+\author{
+Celil Ozkan \\ \\
+Advisor: \\ 
+Prof. Can Ozturan
+}
+\date{}
+\maketitle{}
+\pagenumbering{roman}
+\tableofcontents
+
+\chapter{INTRODUCTION}
+\pagenumbering{arabic}
+
+\section{Broad Impact}
+Stablecoins have become a critical infrastructure component in digital finance. They are used for
+cross-border settlement, centralized exchange (CEX) operations, decentralized exchange (DEX)
+liquidity, lending protocols, and cross-chain bridge transfers. Because stablecoin activity spans
+multiple blockchain networks, understanding where value flows and which addresses act as hubs is
+important for both technical and economic analysis.
+
+This project focuses on extracting ERC-20 transfer events for selected stablecoins from
+EVM-compatible networks and building a data foundation for graph-based flow analysis. The
+repository already implements the data collection layer (RPC fetcher + storage) and prepares the
+next stages (address classification and graph construction). Even this initial stage has clear impact:
+it enables reproducible, large-scale transaction flow studies without depending on closed datasets.
+
+Potential impact areas are:
+\begin{itemize}
+\item Measuring concentration of liquidity and systemic dependency on specific protocols.
+\item Identifying major transfer corridors between users, exchanges, bridges, and protocol contracts.
+\item Supporting transparent research on cross-network asset movement.
+\item Providing a practical educational pipeline for blockchain data engineering.
+\end{itemize}
+
+\section{Ethical Considerations}
+This work only uses publicly available on-chain data (event logs and metadata) and does not attempt
+to deanonymize real-world identities. However, ethical risks still exist:
+\begin{itemize}
+\item \textbf{Misclassification risk:} Address labels (e.g., CEX, DEX, bridge) may be incomplete or
+outdated, leading to incorrect interpretation.
+\item \textbf{Attribution risk:} A wallet may represent multiple actors, so behavioral claims should be
+probabilistic rather than absolute.
+\item \textbf{Privacy expectations:} Although blockchain data is public, analysis should avoid publishing
+harmful, person-targeting conclusions.
+\item \textbf{Method transparency:} All assumptions, filtering choices, and known limitations must be
+clearly documented.
+\end{itemize}
+
+To reduce these risks, the project keeps raw transfer evidence, stores exact chain/log identifiers,
+and emphasizes reproducibility and careful interpretation.
+
+\chapter{PROJECT DEFINITION AND PLANNING}
+\section{Project Definition}
+The objective is to build a modular pipeline that collects stablecoin transfer events and prepares them
+for network analysis across multiple EVM chains.
+
+\textbf{Scope in repository:}
+\begin{itemize}
+\item Networks: Ethereum, Polygon, Arbitrum, Avalanche, Optimism.
+\item Tokens: USDT, USDC, DAI (all selected chains), XAUT (Ethereum).
+\item Data source: Infura JSON-RPC methods (mainly \texttt{eth\_getLogs} and \texttt{eth\_blockNumber}).
+\item Storage: PostgreSQL with partitioned transfer table and progress tracking table.
+\item Interface: CLI command for automatic/manual fetching.
+\end{itemize}
+
+The long-term project goal is to build user-to-user, user-to-protocol, and cross-chain flow graphs,
+with address-type classification as an intermediate stage.
+
+\section{Project Planning}
+The implementation plan is organized in three phases:
+\begin{enumerate}
+\item \textbf{Fetch Phase (implemented):} Build and validate robust event extraction and database
+storage.
+\item \textbf{Analysis Phase (ongoing):} Add address classification and graph construction.
+\item \textbf{Reporting Phase:} Summarize findings, limitations, and future extensions.
+\end{enumerate}
+
+\subsection{Project Time and Resource Estimation}
+Within the semester timeline, the main effort was split as follows:
+\begin{itemize}
+\item 30\%: Architecture decisions (network/token selection, schema design, data source migration).
+\item 45\%: Core implementation (fetcher, DB writes, partition/index setup, CLI command flow).
+\item 15\%: Validation and debugging (Infura 10k limit handling, duplicate handling, progress logs).
+\item 10\%: Documentation and report preparation.
+\end{itemize}
+
+Main resources:
+\begin{itemize}
+\item Python toolchain: \texttt{requests}, \texttt{click}, \texttt{psycopg2}, \texttt{pyyaml}, \texttt{dotenv}.
+\item PostgreSQL 16 running in Docker.
+\item Infura RPC endpoints with API key/secret authentication.
+\end{itemize}
+
+\subsection{Success Criteria}
+The project defines practical success criteria for the current stage:
+\begin{itemize}
+\item Correctly fetch and decode ERC-20 \texttt{Transfer} logs for selected tokens.
+\item Support both automatic and manual block-range execution via CLI.
+\item Store events in relational schema with conflict-safe upsert behavior.
+\item Preserve resumability/provenance through chunk-level fetch progress records.
+\item Keep architecture modular so classification and graph stages can be added without
+rewriting fetch/storage layers.
+\end{itemize}
+
+\subsection{Risk Analysis}
+Key technical and project risks are:
+\begin{itemize}
+\item \textbf{RPC result cap (10k logs):} Handled by adaptive chunk resizing when provider returns range
+overflow errors.
+\item \textbf{Rate limits / provider dependency:} Reduced by shifting from explorer APIs to Infura RPC and
+using chunked requests.
+\item \textbf{Data duplication:} Mitigated by unique constraint \texttt{(tx\_hash, log\_index, network)} and
+\texttt{ON CONFLICT DO NOTHING}.
+\item \textbf{Cross-chain comparability:} Controlled by restricting scope to EVM-compatible networks.
+\item \textbf{Schedule pressure:} Core pipeline prioritized before optional dashboard and advanced
+classification features.
+\end{itemize}
+
+\subsection{Team Work (if applicable)}
+The repository and implementation are currently maintained by a single student developer.
+Coordination was done through regular advisor meetings and weekly technical checkpoints.
+
+
+\chapter{RELATED WORK}
+This project is implementation-oriented and grounded in publicly available blockchain tooling.
+Three related areas are particularly relevant:
+
+\textbf{(1) Blockchain data providers and explorers.}
+Explorer APIs (Etherscan/Arbiscan/Polygonscan/Snowtrace/Optimistic Etherscan) provide convenient
+access but can become restrictive for high-volume extraction due to rate limits and endpoint
+limitations. JSON-RPC endpoints (e.g., Infura) provide lower-level access and are better aligned with
+event-centric pipelines. Practical RPC method design and usage patterns are discussed in
+developer-focused sources such as Sharma's guide \cite{sharma2020} and the official Ethereum
+JSON-RPC documentation \cite{ethereum_jsonrpc}.
+
+\textbf{(2) ERC-20 event-based analysis.}
+Many token analytics workflows reconstruct transfer networks by parsing \texttt{Transfer} events rather
+than tracing full transaction internals. The ERC-20 standard itself is defined in the original Ethereum
+Improvement Proposal by Vogelsteller and Buterin \cite{erc20}. This project follows that standard and
+stores normalized event records for later graph modeling.
+
+Empirical research also demonstrates that ERC-20 transaction networks can be analyzed effectively
+with graph methods for structural insights and prediction tasks \cite{somin2020}.
+
+\textbf{(3) Address classification for blockchain intelligence.}
+Graph interpretation quality strongly depends on labeling addresses (EOA, exchange hot wallet,
+DEX router/pool, bridge contract, etc.). The current codebase prepares this stage by preserving
+normalized sender/receiver/token fields and consistent network metadata.
+
+The references list in this report includes the exact technical documentation used during
+implementation (RPC method references and chain explorers).
+
+\chapter{METHODOLOGY}
+The methodology is a data engineering pipeline designed for reproducibility and extensibility.
+
+\textbf{Step 1 -- Define chain/token configuration.}
+Network metadata and token contract addresses are defined in YAML files. This separates
+configuration from code and allows controlled scope updates.
+
+\textbf{Step 2 -- Fetch logs by chunked block ranges.}
+For each network, the fetcher requests \texttt{eth\_getLogs} over a block interval and selected token
+addresses. Different request steps are used per chain to adapt to activity density.
+
+\textbf{Step 3 -- Decode raw logs into normalized transfer records.}
+Each log is decoded into a structured record containing block/tx/log identifiers, token fields,
+sender/receiver addresses, and decimal-normalized value.
+
+\textbf{Step 4 -- Persist to PostgreSQL incrementally.}
+Decoded transfers are written in batches into a partitioned table. Completed block chunks are also
+stored in a progress table to support resumable runs and post-hoc auditing.
+
+\textbf{Step 5 -- Prepare analysis-ready representation.}
+The stored records are suitable for graph construction where each transfer event corresponds to a
+directed weighted edge from \texttt{from\_address} to \texttt{to\_address}. Edge weight is token amount, and
+time context is available via block number/timestamp.
+
+Mathematically, for a token-specific transfer graph $G=(V,E)$:
+$$
+E = \{(u,v,w,t)\,|\,u=\text{from},\;v=\text{to},\;w=\text{value},\;t=\text{block\_time}\}
+$$
+and aggregate flow between two addresses can be computed as:
+$$
+W(u,v)=\sum_{e\in E_{u\rightarrow v}} w_e
+$$
+
+
+\chapter{REQUIREMENTS SPECIFICATION}
+The requirements are split into functional and non-functional parts.
+
+\section*{Functional Requirements}
+\begin{enumerate}
+\item System shall fetch ERC-20 \texttt{Transfer} logs for configured token contracts.
+\item System shall support multiple EVM networks through a unified interface.
+\item System shall provide manual and automatic fetching modes.
+\item System shall decode and store transfer fields in a normalized schema.
+\item System shall avoid duplicate inserts using deterministic uniqueness constraints.
+\item System shall store fetch-progress checkpoints for each processed block chunk.
+\item System shall provide query capability for stored transfer data.
+\end{enumerate}
+
+\section*{Non-Functional Requirements}
+\begin{enumerate}
+\item \textbf{Reliability:} interrupted runs should be recoverable from stored progress.
+\item \textbf{Scalability:} schema and indexes should support growth across chains and high event volume.
+\item \textbf{Maintainability:} configuration files should allow adding/removing chains and tokens with minimal code changes.
+\item \textbf{Traceability:} every stored event should preserve source identifiers
+(tx hash, log index, block number, network).
+\item \textbf{Usability:} command-line execution should be simple for data collection tasks.
+\end{enumerate}
+
+\section*{Primary Use Cases}
+\begin{itemize}
+\item \textbf{UC-1 Fetch Latest Data:} User starts automatic mode and system fetches from last processed
+block to latest chain block.
+\item \textbf{UC-2 Fetch Custom Interval:} User provides start/end block and system fetches selected range.
+\item \textbf{UC-3 Resume After Failure:} User re-runs fetch and system avoids duplicates while continuing
+with remaining chunks.
+\item \textbf{UC-4 Export for Analysis:} Analyst queries normalized transfer records from PostgreSQL for
+classification/graph tasks.
+\end{itemize}
+
+
+\chapter{DESIGN}
+
+\section{Information Structure}
+The central relational model consists of two tables:
+
+\textbf{(1) transfers} (partitioned by \texttt{network})
+\begin{itemize}
+\item Keys and provenance: \texttt{tx\_hash}, \texttt{log\_index}, \texttt{block\_number}, \texttt{block\_hash}
+\item Flow fields: \texttt{from\_address}, \texttt{to\_address}, \texttt{value}, \texttt{raw\_value}
+\item Asset context: \texttt{token\_symbol}, \texttt{token\_address}
+\item Integrity: unique constraint on \texttt{(tx\_hash, log\_index, network)}
+\end{itemize}
+
+\textbf{(2) fetch\_progress}
+\begin{itemize}
+\item Stores processed chunk ranges and log counts per network.
+\item Ensures chunk-level uniqueness via \texttt{(network, chunk\_start, chunk\_end)}.
+\end{itemize}
+
+Indexing strategy includes block-based, address-based, token-based, and network-based indexes to
+support both temporal and entity-centric queries.
+
+\section{Information Flow}
+The runtime data flow is:
+\begin{enumerate}
+\item CLI receives parameters (network + auto/manual + optional start/end).
+\item System determines block interval (DB latest block + RPC latest block in auto mode).
+\item Fetcher requests \texttt{eth\_getLogs} for selected token addresses and transfer topic.
+\item Response logs are decoded and normalized.
+\item Batched inserts are written to PostgreSQL with conflict-safe behavior.
+\item Processed chunk metadata is written to \texttt{fetch\_progress}.
+\item Loop continues until end block is reached.
+\end{enumerate}
+
+If the provider reports result-set overflow (more than 10,000 logs), the chunk size is reduced
+adaptively and the request is retried.
+
+\section{System Design}
+The codebase is modular and currently includes:
+\begin{itemize}
+\item \texttt{src/cli.py}: top-level command group.
+\item \texttt{src/commands/fetch.py}: fetch command argument parsing and mode control.
+\item \texttt{src/fetcher\_client.py}: RPC calls, decode logic, adaptive chunk loop.
+\item \texttt{src/db.py}: database connection, inserts, reads, progress and utility operations.
+\item \texttt{src/helpers.py}: YAML config access, logging, conversion helpers, Infura auth helpers.
+\item \texttt{src/enums.py}: chain/token enums and progress data class.
+\item \texttt{sql/*.sql}: schema and index creation scripts.
+\item \texttt{config/*.yaml}: network and token configuration.
+\end{itemize}
+
+This decomposition separates concerns clearly and reduces coupling between command handling,
+data retrieval, decode logic, and persistence.
+
+\section{User Interface Design (if applicable)}
+The current user interface is command-line based. The CLI provides one implemented command
+(\texttt{fetch}) and placeholders for future commands (\texttt{classify}, \texttt{graph}, \texttt{status}).
+
+Current interface benefits:
+\begin{itemize}
+\item Low operational complexity for data engineers.
+\item Easy integration with server-side scheduling (cron, cloud VM, CI jobs).
+\item Deterministic invocation for reproducibility.
+\end{itemize}
+
+Planned UI extension is a lightweight dashboard to inspect transfer graphs and address categories.
+
+\chapter{IMPLEMENTATION AND TESTING}
+\section{Implementation}
+The implemented pipeline uses Python with PostgreSQL 16 and Dockerized database runtime.
+
+Important implementation decisions:
+\begin{itemize}
+\item Switched from explorer APIs to Infura RPC for improved scalability.
+\item Added per-network request step values to reduce failure rates under the 10k RPC cap.
+\item Implemented adaptive chunk resizing when overflow errors are returned by provider.
+\item Inserted data in batches with conflict handling for idempotent re-runs.
+\item Partitioned \texttt{transfers} table by network for better query organization and growth handling.
+\end{itemize}
+
+The implementation currently covers extraction and storage. Classification and graph generation are
+defined as the next stage and partially prepared in code structure.
+
+\section{Testing}
+Automated unit tests are not yet included in the repository. Validation has been performed through
+manual and integration-style checks:
+\begin{itemize}
+\item CLI argument validation for auto/manual modes.
+\item Correct retrieval of latest block and latest processed DB block in auto mode.
+\item Successful decoding of ERC-20 transfer event fields.
+\item Duplicate-protection behavior through unique constraints and conflict handling.
+\item Correct insertion of chunk metadata into \texttt{fetch\_progress}.
+\item Sampling checks on output JSON and database rows for consistency.
+\end{itemize}
+
+A key observed behavior is that high-density ranges can hit provider limits; the adaptive chunk
+strategy improved successful completion without manual intervention.
+
+\section{Deployment}
+Deployment for development is lightweight and reproducible:
+\begin{enumerate}
+\item Configure environment variables (DB credentials, Infura key/secret).
+\item Start PostgreSQL container via Docker Compose.
+\item Execute SQL scripts to create schema and indexes.
+\item Run CLI fetch command in auto or manual mode.
+\end{enumerate}
+
+Example commands:
+\begin{itemize}
+\item \texttt{docker compose up -d}
+\item \texttt{python3 src/cli.py fetch --network ethereum --auto}
+\item \texttt{python3 src/cli.py fetch --network polygon --manual --start 50000000 --end 50001000}
+\end{itemize}
+
+The architecture is suitable for future cloud deployment (e.g., scheduled fetch jobs on a VM or
+container service).
+
+\chapter{RESULTS}
+Current repository outputs demonstrate successful event extraction and normalization.
+
+From sample files in the \texttt{output} folder, a total of \textbf{15,151} transfer events were collected.
+The observed sample breakdown is:
+
+\begin{table}[h!]
+\centering
+\caption{Sample extraction summary from repository outputs}
+\begin{tabular}{|l|r|l|}
+\hline
+\textbf{File} & \textbf{Log Count} & \textbf{Block Span} \\\hline
+infura\_logs\_20260308\_172243.json & 217 & 24,613,835--24,613,835 \\\hline
+infura\_logs\_20260308\_172345.json & 1,394 & 24,613,832--24,613,840 \\\hline
+infura\_logs\_20260309\_211817\_batch\_1.json & 10,000 & 50,000,000--50,000,705 \\\hline
+infura\_logs\_20260309\_211817\_batch\_2.json & 3,323 & 50,000,705--50,001,000 \\\hline
+infura\_logs\_20260309\_211948\_batch\_1.json & 217 & 50,000,000--50,000,010 \\\hline
+\end{tabular}
+\end{table}
+
+Aggregated token distribution in these samples:
+\begin{itemize}
+\item USDT: 8,682 events
+\item DAI: 5,286 events
+\item USDC: 1,167 events
+\item XAUT: 16 events
+\end{itemize}
+
+Aggregated network distribution in these samples:
+\begin{itemize}
+\item Ethereum: 1,611 events
+\item Polygon: 13,540 events
+\end{itemize}
+
+These results verify that the implemented fetch-storage pipeline is functional across different
+chains and transfer densities. They also provide a concrete base for the next project stage:
+address classification and graph analytics.
+
+\chapter{CONCLUSION}
+This project established the core data pipeline for stablecoin flow analysis on EVM-compatible
+blockchains. The implemented system fetches ERC-20 transfer logs, decodes them into analysis-ready
+records, and stores them in a partitioned PostgreSQL schema with resumable progress tracking.
+
+The current milestone demonstrates reliable extraction and persistence for selected networks and
+tokens. This directly enables upcoming research tasks such as address-type classification,
+construction of directed weighted flow graphs, and computation of centrality/flow metrics.
+
+Main limitations at this stage are the absence of automated tests, incomplete address labeling, and
+no finalized visualization layer. Future work will focus on:
+\begin{itemize}
+\item Robust address taxonomy (EOA, DEX, CEX, bridge, mint/burn, admin/multisig).
+\item Graph generation pipelines and temporal flow analysis.
+\item Dashboard/reporting interface for interactive exploration.
+\item Expanded evaluation methodology and benchmark scenarios.
+\end{itemize}
+
+Overall, the repository already provides a solid and extensible technical foundation for the full
+scope of the CMPE 492 stablecoin flow analysis project.
+
+\bibliographystyle{styles/fbe_tez_v11}
+\bibliography{references}
+
+\appendix	
+\chapter{COMMAND EXAMPLES}
+Useful command invocations from the current implementation:
+
+\begin{itemize}
+\item \texttt{python3 src/cli.py}
+\item \texttt{python3 src/cli.py fetch --network ethereum --auto}
+\item \texttt{python3 src/cli.py fetch --network polygon --manual --start 50000000 --end 50001000}
+\item \texttt{docker compose up -d}
+\end{itemize}
+
+Expected next commands (planned, not yet implemented):
+\begin{itemize}
+\item \texttt{python3 src/cli.py classify ...}
+\item \texttt{python3 src/cli.py graph ...}
+\end{itemize}
+
+\end{document}
