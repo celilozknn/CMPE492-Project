@@ -181,7 +181,38 @@ def get_fetch_progress(params: dict = None) -> list[FetchProgress]:
     ]
     return progress_list
 
+# ----------------------------
+# Classify x402 agents
+# ----------------------------
+def update_x402_flags(network: Networks, addresses: set[str]):
+    """
+    Updates transfers table:
+    - is_from_x402 = true if from_address in addresses
+    - is_to_x402 = true if to_address in addresses
+    """
 
+    if not addresses:
+        logger.warning("No x402 addresses provided, skipping update")
+        return
+
+    query = """
+    UPDATE transfers
+    SET
+        is_from_x402 = (from_address = ANY(%s)),
+        is_to_x402 = (to_address = ANY(%s))
+    WHERE network = %s;
+    """
+
+    addr_list = list(addresses)
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (addr_list, addr_list, network.name))
+            conn.commit()
+
+    logger.info(
+        f"Updated x402 flags for {len(addresses)} agents on {network.name}"
+    )
 
 # ----------------------------
 # UTILITIES

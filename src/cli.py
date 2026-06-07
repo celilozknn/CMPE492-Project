@@ -1,19 +1,25 @@
 import click
+from helpers import get_logger
 from commands.fetch import fetch
+from commands.classify_agents import classify_agents
 # from commands.classify import classify  # future
 # from commands.graph import graph  # future
-
+            
 @click.group(invoke_without_command=True)
 @click.pass_context
 def cli(ctx):
     """
     Blockchain Stablecoin Flow Analysis Pipeline
     """
+    ctx.ensure_object(dict)
+    ctx.obj["logger"] = get_logger("CLI")
+
     if ctx.invoked_subcommand is None:
         click.echo("\nBlockchain Stablecoin Flow Analysis Pipeline\n")
         click.echo("Available commands:\n")
         commands = [
             ("fetch", "Fetch transfer logs from blockchain"),
+            ("classify_agents", "Classify given transfer logs with x402 agent classifier"),
             ("classify", "Classify transfers (CEX, DEX, etc.) [coming soon]"),
             ("graph", "Generate network graphs [coming soon]"),
             ("status", "Show pipeline status [coming soon]")
@@ -24,6 +30,7 @@ def cli(ctx):
         click.echo("\nUse 'python cli.py <command> --help' for command details.\n")
 
 cli.add_command(fetch)
+cli.add_command(classify_agents)
 # cli.add_command(classify)  # future
 # cli.add_command(graph)  # future
 

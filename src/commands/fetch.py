@@ -2,9 +2,7 @@ import click
 from enums import Networks
 from helpers import get_logger
 from db import get_latest_processed_block_from_db
-from fetcher_client import run_fetcher, get_latest_block
-
-logger = get_logger("CLI")
+from fetchers.fetcher_client import run_fetcher, get_latest_block
 
 # We have 10k log limit for each response from Infura
 # Hence I try to send block range that would likely contain around 10k logs. 
@@ -57,6 +55,8 @@ Examples:
     (Block numbers for 2026.10.03 - ETHEREUM: 24622559, ARBITRUM: 440103332, POLYGON: 83985618, AVALANCHE: 79981230, OPTIMISM: 148746274)
     """
 
+    logger = ctx.obj["logger"]
+    
     network_enum = Networks[network.upper()]
 
     # Determine blocks
