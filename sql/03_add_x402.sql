@@ -1,0 +1,3 @@
+ALTER TABLE transfers
+ADD COLUMN is_from_x402 BOOLEAN,
+ADD COLUMN is_to_x402 BOOLEAN;
