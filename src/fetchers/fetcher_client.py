@@ -279,11 +279,3 @@ def run_fetcher(network: Networks, start_block: int, end_block: int, request_ste
 
     logger.info(f"Token transfer summary: {dict(token_counts)}")
     logger.info(f"Run completed successfully in {pretty_seconds(elapsed_time)}. {start_time} - {end_time}. Total logs fetched: {total_logs_fetched}.")
-    
-if __name__ == "__main__":
-    run_fetcher(
-        network=Networks.ETHEREUM,
-        start_block=None,
-        end_block=None,
-        request_step=10_000
-    )
