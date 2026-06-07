@@ -33,4 +33,3 @@ class FetchProgress:
             "log_count": self.log_count,
         }
     
-# TODO: add Transfer class, better than using a dict.

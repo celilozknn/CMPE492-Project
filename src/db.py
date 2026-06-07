@@ -215,6 +215,177 @@ def update_x402_flags(network: Networks, addresses: set[str]):
     )
 
 # ----------------------------
+# Classify addresses
+# ----------------------------
+
+def update_event_flags(network, zero_address, logger: logging.Logger):
+    """
+    Updates transfers table:
+    - event_class = 'MINT' if from_address is zero address
+    - event_class = 'BURN' if to_address is zero address
+    """
+
+    query = """
+    UPDATE transfers
+    SET event_class = CASE
+        WHEN from_address = %s THEN 'MINT'
+        WHEN to_address = %s THEN 'BURN'
+        ELSE event_class
+    END
+    WHERE network = %s
+      AND event_class IS NULL;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (zero_address, zero_address, network.name))
+            conn.commit()
+
+    logger.info(f"Updated mint/burn event_class for {network.name}")
+    
+def update_cex_entity_flags(
+    network,
+    label: str,
+    addresses: set[str],
+    logger
+):
+    """.
+    Updates transfers table:
+    - from_entity_class += label if from_address in addresses
+    - to_entity_class += label if to_address in addresses
+    Only updates with CEX label
+    """
+
+    if not addresses:
+        logger.warning(f"No {label} addresses provided, skipping update")
+        return
+
+    addr_list = list(addresses)
+
+    query = """
+            UPDATE transfers
+            SET
+                from_entity_class = CASE
+                    WHEN from_address = ANY(%s)
+                    THEN array(
+                        SELECT DISTINCT unnest(
+                            COALESCE(from_entity_class, ARRAY[]::text[])
+                            || ARRAY[%s]
+                        )
+                    )
+                    ELSE from_entity_class
+                END,
+
+                to_entity_class = CASE
+                    WHEN to_address = ANY(%s)
+                    THEN array(
+                        SELECT DISTINCT unnest(
+                            COALESCE(to_entity_class, ARRAY[]::text[])
+                            || ARRAY[%s]
+                        )
+                    )
+                    ELSE to_entity_class
+                END
+            WHERE network = %s
+            AND (from_address = ANY(%s) OR to_address = ANY(%s));
+            """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                query,
+                (
+                    addr_list,  # from match
+                    label,      # from append
+                    addr_list,  # to match
+                    label,      # to append
+                    network.name,
+                    addr_list,
+                    addr_list
+                )
+            )
+            conn.commit()
+
+    logger.info(f"Updated {label} flags for {network.name}")
+
+def update_bridge_entity_flags(
+    network: str,
+    deposit_hashes: set[str],
+    withdrawal_hashes: set[str],
+    logger
+):
+    """
+    Updates BRIDGE labels based on tx_hash:
+
+    - deposit txs  → to_entity_class += BRIDGE
+    - withdrawal txs → from_entity_class += BRIDGE
+    """
+
+    # --------------
+    # SAFETY CHECK
+    # --------------
+    intersection = deposit_hashes & withdrawal_hashes
+    if intersection:
+        # if overlap, data corrupted, remove them
+        deposit_hashes -= intersection
+        withdrawal_hashes -= intersection
+
+    deposit_list = list(deposit_hashes)
+    withdrawal_list = list(withdrawal_hashes)
+
+    if not deposit_list and not withdrawal_list:
+        logger.warning(f"[{network}] No bridge tx hashes provided")
+        return
+
+    query = """
+        UPDATE transfers
+        SET
+            to_entity_class = CASE
+                WHEN tx_hash = ANY(%s)
+                THEN array(
+                    SELECT DISTINCT unnest(
+                        COALESCE(to_entity_class, ARRAY[]::text[])
+                        || ARRAY['BRIDGE']
+                    )
+                )
+                ELSE to_entity_class
+            END,
+
+            from_entity_class = CASE
+                WHEN tx_hash = ANY(%s)
+                THEN array(
+                    SELECT DISTINCT unnest(
+                        COALESCE(from_entity_class, ARRAY[]::text[])
+                        || ARRAY['BRIDGE']
+                    )
+                )
+                ELSE from_entity_class
+            END
+        WHERE network = %s
+        AND (tx_hash = ANY(%s) OR tx_hash = ANY(%s));
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                query,
+                (
+                    deposit_list,      # to_entity_class update
+                    withdrawal_list,   # from_entity_class update
+                    network,
+                    deposit_list,
+                    withdrawal_list
+                )
+            )
+            conn.commit()
+
+    logger.info(
+        f"[{network}] BRIDGE tx classification updated | "
+        f"deposit={len(deposit_list)} withdrawal={len(withdrawal_list)}"
+    )
+
+
+# ----------------------------
 # UTILITIES
 # ----------------------------
 def get_latest_processed_block_from_db(network: Networks) -> int | None:
