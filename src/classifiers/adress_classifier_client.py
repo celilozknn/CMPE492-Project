@@ -1,7 +1,7 @@
 import logging
 from enums import Networks
 
-from db import update_mint_burn_flags
+from db import update_event_flags
 
 
 def classify_mint_burn(network: Networks, logger: logging.Logger) -> None:
@@ -13,10 +13,13 @@ def classify_mint_burn(network: Networks, logger: logging.Logger) -> None:
     logger.info(f"Starting mint/burn classification for {network.name}")
     ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
     
-    update_mint_burn_flags(network, ZERO_ADDRESS, logger)
+    update_event_flags(network, ZERO_ADDRESS, logger)
 
     logger.info(f"Completed mint/burn classification for {network.name}")
     
+    
+
+
 def classify_address_labels(network: Networks, logger: logging.Logger) -> None:
     """
     CLI-facing orchestrator for address classification.

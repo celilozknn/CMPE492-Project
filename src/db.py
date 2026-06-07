@@ -218,7 +218,7 @@ def update_x402_flags(network: Networks, addresses: set[str]):
 # Classify addresses
 # ----------------------------
 
-def update_mint_burn_flags(network, zero_address, logger: logging.Logger):
+def update_event_flags(network, zero_address, logger: logging.Logger):
     """
     Updates transfers table:
     - event_class = 'MINT' if from_address is zero address
@@ -242,6 +242,45 @@ def update_mint_burn_flags(network, zero_address, logger: logging.Logger):
             conn.commit()
 
     logger.info(f"Updated mint/burn event_class for {network.name}")
+    
+def update_entity_flags(
+    network,
+    label: str,
+    addresses: set[str],
+    logger
+):
+    """
+    Generic entity classifier updater.
+    Adds a label (CEX/DEX/BRIDGE/etc.) to entity_classes
+    based on from/to address matches.
+    """
+
+    if not addresses:
+        logger.warning(f"No {label} addresses provided, skipping update")
+        return
+
+    addr_list = list(addresses)
+
+    query = """
+            UPDATE transfers
+            SET entity_classes =
+                CASE
+                    WHEN entity_classes ? %s THEN entity_classes
+                    ELSE COALESCE(entity_classes, '[]'::jsonb) || jsonb_build_array(%s)
+                END
+            WHERE network = %s
+            AND (from_address = ANY(%s) OR to_address = ANY(%s));
+            """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                query,
+                (label, label, network.name, addr_list, addr_list)
+            )
+            conn.commit()
+
+    logger.info(f"Updated {label} flags for {network.name}")
     
 # ----------------------------
 # UTILITIES
