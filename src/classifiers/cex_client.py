@@ -12,7 +12,7 @@ from typing import Set
 
 from enums import Networks
 from helpers import get_chain_id, get_logger
-from db import update_entity_flags
+from db import update_cex_entity_flags
 from paths import CONFIG_FOLDER_PATH, DEBUG_FOLDER_PATH
 
 load_dotenv()
@@ -128,7 +128,7 @@ def classify_cex_addresses(network: Networks, update: bool, logger: logging.Logg
         
     cex_addresses = load_cex_addresses(network, logger)
 
-    update_entity_flags(network, "CEX", cex_addresses, logger)
+    update_cex_entity_flags(network, "CEX", cex_addresses, logger)
 
     logger.info("DB updated for CEX classification")
 

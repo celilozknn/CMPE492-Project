@@ -8,7 +8,7 @@ import json
 from dotenv import load_dotenv
 
 from enums import Networks
-from db import update_entity_flags
+from db import update_bridge_entity_flags
 from paths import CONFIG_FOLDER_PATH, DEBUG_FOLDER_PATH
 
 load_dotenv()
@@ -43,7 +43,7 @@ def fetch_bridge_hashes_from_dune(
         "X-Dune-API-Key": DUNE_API_KEY
     }
 
-    url = f"{DUNE_BASE}/{query_id}/results?limit=5000000"
+    url = f"{DUNE_BASE}/{query_id}/results"
 
     hashes: set[str] = set()
 
@@ -51,10 +51,6 @@ def fetch_bridge_hashes_from_dune(
         logger.info(f"Fetching bridge hashes: {url}")
 
         r = requests.get(url, headers=headers)
-        
-        logger.info(f"Status: {r.status_code}")
-        logger.info(r.text[:1000])
-
         r.raise_for_status()
 
         data = r.json()
@@ -95,22 +91,20 @@ def save_bridge_hashes(
         f"Saved {len(hashes)} hashes -> {path}"
     )
     
-def load_bridge_hashes(
-    network: Networks,
-    file_prefix: str,
-    logger: logging.Logger
-) -> list[str]:
+def load_bridge_hashes(network: Networks, file_prefix: str, logger: logging.Logger) -> set[str]:
 
     path = CONFIG_FOLDER_PATH / f"{file_prefix}_{network.value}.yaml"
 
     if not path.exists():
         logger.warning(f"Missing file: {path}")
-        return []
+        return set()
 
     with open(path, "r") as f:
         data = yaml.safe_load(f) or {}
 
-    return data.get(network.value.lower(), [])
+    values = data.get(network.value.lower(), [])
+
+    return {v.lower() for v in values if v}
 
 def update_bridge_files(logger: logging.Logger):
 
@@ -166,17 +160,21 @@ def classify_bridge_addresses(
         "bridge_withdrawals",
         logger
     )
-
-    update_entity_flags(
-        network,
-        "BRIDGE",
+    
+    logger.info(
+        f"Loaded {len(deposit_hashes)} deposit hashes and {len(withdrawal_hashes)} withdrawal hashes for {network.name}"
+    )
+    
+    update_bridge_entity_flags(
+        network.name.upper(),
         deposit_hashes,
+        withdrawal_hashes,
         logger
     )
 
-    update_entity_flags(
-        network,
-        "BRIDGE",
+    update_bridge_entity_flags(
+        network.name.upper(),
+        deposit_hashes,
         withdrawal_hashes,
         logger
     )
