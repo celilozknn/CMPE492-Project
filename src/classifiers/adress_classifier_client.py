@@ -1,5 +1,6 @@
 import logging
 from enums import Networks
+from classifiers.cex_client import classify_cex_addresses
 
 from db import update_event_flags
 
@@ -20,16 +21,17 @@ def classify_mint_burn(network: Networks, logger: logging.Logger) -> None:
     
 
 
-def classify_address_labels(network: Networks, logger: logging.Logger) -> None:
+def classify_address_labels(network: Networks, update: bool, logger: logging.Logger) -> None:
     """
     CLI-facing orchestrator for address classification.
     Delegates actual classification logic to classifiers layer.
     """
 
     # Update mint/burn flags first since they are a specific type of address classification
-    classify_mint_burn(network, logger)
-    logger.info("Successfully classified mint/burn addresses.")
+    #classify_mint_burn(network, logger)
+    #logger.info("Successfully classified mint/burn addresses.")
     
-    
+    # Cex classification
+    classify_cex_addresses(network, update, logger)
 
     logger.info(f"Done address classification for {network.name}")

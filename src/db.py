@@ -263,10 +263,27 @@ def update_entity_flags(
 
     query = """
             UPDATE transfers
-            SET entity_classes =
-                CASE
-                    WHEN entity_classes ? %s THEN entity_classes
-                    ELSE COALESCE(entity_classes, '[]'::jsonb) || jsonb_build_array(%s)
+            SET
+                from_entity_class = CASE
+                    WHEN from_address = ANY(%s)
+                    THEN array(
+                        SELECT DISTINCT unnest(
+                            COALESCE(from_entity_class, ARRAY[]::text[])
+                            || ARRAY[%s]
+                        )
+                    )
+                    ELSE from_entity_class
+                END,
+
+                to_entity_class = CASE
+                    WHEN to_address = ANY(%s)
+                    THEN array(
+                        SELECT DISTINCT unnest(
+                            COALESCE(to_entity_class, ARRAY[]::text[])
+                            || ARRAY[%s]
+                        )
+                    )
+                    ELSE to_entity_class
                 END
             WHERE network = %s
             AND (from_address = ANY(%s) OR to_address = ANY(%s));
@@ -276,7 +293,15 @@ def update_entity_flags(
         with conn.cursor() as cur:
             cur.execute(
                 query,
-                (label, label, network.name, addr_list, addr_list)
+                (
+                    addr_list,  # from match
+                    label,      # from append
+                    addr_list,  # to match
+                    label,      # to append
+                    network.name,
+                    addr_list,
+                    addr_list
+                )
             )
             conn.commit()
 
