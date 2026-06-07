@@ -97,6 +97,23 @@ docker exec -it <container_name> psql -U <your_database_user> -d <your_database_
 You should also create the necessary tables, which can be done via SQL commands. You can find sql scripts in the `sql` directory. 
 I didn't want to bother with ORM for now, so you can run raw SQL commands using the `psql` command line interface or any PostgreSQL client.
 
+### How to run 
+
+#### To fetch data:
+
+If you don't want to specify a spesific block range you can use --auto. This will learn what was saved in the database as the last block and start fetching from there. This is useful for continuous data collection for automated server. Possible <network_name> values are: ethereum, polygon, optimism, arbitrum, avalanche. You can also write --manual and specify the block range with --start and --end flags. You can learn start and end block numbers for each network from the respective block explorers. For example, for Ethereum you can use Etherscan, for Polygon you can use Polygonscan, etc.
+
+```bash
+python3 src/cli.py fetch --network <network_name> --auto
+python3 src/cli.py fetch --network <network_name> --manual --start <start_block> --end <end_block>
+```
+
+Examples:
+```bash
+python3 src/cli.py fetch --network ethereum --auto
+python3 src/cli.py fetch --network ethereum --manual --start 24620000 --end 24622559
+```
+
 ## Contact
 
 For questions, feedback, or collaboration inquiries, please reach out via GitHub Issues or email.
