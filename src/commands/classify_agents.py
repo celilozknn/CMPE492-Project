@@ -19,7 +19,7 @@ from classifiers.agent_classifier_client import classify_x402_agents, update_x40
 @click.pass_context
 def classify_agents(ctx, network, update):
     """
-    Fetch x402-supported agent contracts for a given network.
+    Fetch x402-supported agent contracts for a network.
 
     Example:
 

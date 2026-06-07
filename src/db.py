@@ -215,6 +215,35 @@ def update_x402_flags(network: Networks, addresses: set[str]):
     )
 
 # ----------------------------
+# Classify addresses
+# ----------------------------
+
+def update_mint_burn_flags(network, zero_address, logger: logging.Logger):
+    """
+    Updates transfers table:
+    - event_class = 'MINT' if from_address is zero address
+    - event_class = 'BURN' if to_address is zero address
+    """
+
+    query = """
+    UPDATE transfers
+    SET event_class = CASE
+        WHEN from_address = %s THEN 'MINT'
+        WHEN to_address = %s THEN 'BURN'
+        ELSE event_class
+    END
+    WHERE network = %s
+      AND event_class IS NULL;
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (zero_address, zero_address, network.name))
+            conn.commit()
+
+    logger.info(f"Updated mint/burn event_class for {network.name}")
+    
+# ----------------------------
 # UTILITIES
 # ----------------------------
 def get_latest_processed_block_from_db(network: Networks) -> int | None:
