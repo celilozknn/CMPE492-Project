@@ -1,6 +1,7 @@
 import logging
 from enums import Networks
 from classifiers.cex_client import classify_cex_addresses
+from classifiers.bridge_client import classify_bridge_addresses
 
 from db import update_event_flags
 
@@ -28,10 +29,13 @@ def classify_address_labels(network: Networks, update: bool, logger: logging.Log
     """
 
     # Update mint/burn flags first since they are a specific type of address classification
-    #classify_mint_burn(network, logger)
-    #logger.info("Successfully classified mint/burn addresses.")
+    # classify_mint_burn(network, logger)
+    # logger.info("Successfully classified mint/burn addresses.")
     
     # Cex classification
-    classify_cex_addresses(network, update, logger)
+    # classify_cex_addresses(network, update, logger)
+    
+    # Bridge classification
+    classify_bridge_addresses(network, update, logger)
 
     logger.info(f"Done address classification for {network.name}")
