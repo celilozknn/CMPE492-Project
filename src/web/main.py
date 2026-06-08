@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 
 from .backend.graph_api import router as graph_router
 from .backend.meta_api import router as metadata_router
+from .backend.flow_api import router as flow_router
 
 app = FastAPI(
     title="ChainFlow Dashboard",
@@ -14,6 +15,7 @@ app = FastAPI(
 
 app.include_router(graph_router)
 app.include_router(metadata_router)
+app.include_router(flow_router)
 
 app.mount("/static", StaticFiles(directory="src/web/static"), name="static")
 
@@ -23,4 +25,8 @@ def root():
     
 @app.get("/graph")
 def graph_page():
-    return FileResponse("src/web/static/graph/graph.html")
+    return FileResponse("src/web/static/pagerank/pagerank.html")
+
+@app.get("/flow")
+def flow_page():
+    return FileResponse("src/web/static/flow_explorer/flow_explorer.html")

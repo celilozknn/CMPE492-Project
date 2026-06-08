@@ -2,6 +2,55 @@
   box-sizing: border-box;
 }
 
+/* ===== Navbar ===== */
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 28px;
+  height: 56px;
+  background: #0f172a;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
+.navbar-brand {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f1f5f9;
+  text-decoration: none;
+  margin-right: 24px;
+  letter-spacing: -0.3px;
+}
+
+.navbar-brand:hover {
+  color: #ffffff;
+}
+
+.navbar-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: #94a3b8;
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.navbar-link:hover {
+  color: #e2e8f0;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.navbar-link.active {
+  color: #f1f5f9;
+  background: rgba(148, 163, 184, 0.1);
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
@@ -151,9 +200,9 @@ p {
 
 /* ===== Graph Page ===== */
 
-svg {
+svg#graph {
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 56px);
   display: block;
 }
 
@@ -181,7 +230,7 @@ svg {
 
 #ui {
   position: fixed;
-  top: 20px;
+  top: 76px;
   left: 20px;
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(15px);

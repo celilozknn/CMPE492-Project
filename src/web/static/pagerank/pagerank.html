@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ChainFlow - PageRank Analysis</title>
+  <title>ChainFlow — PageRank Explorer</title>
 
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <link rel="stylesheet" href="/static/base.css" />
@@ -11,10 +11,17 @@
 
 <body>
 
+<nav class="navbar">
+  <a class="navbar-brand" href="/">ChainFlow</a>
+  <a class="navbar-link" href="/">Home</a>
+  <a class="navbar-link active" href="/graph">PageRank Explorer</a>
+  <a class="navbar-link" href="/flow">Flow Explorer</a>
+</nav>
+
 <svg id="graph"></svg>
 
 <div id="ui">
-  <h2>PageRank Analysis</h2>
+  <h2>PageRank Explorer</h2>
 
   <div class="control-group">
     <label for="network">Network</label>
@@ -40,7 +47,6 @@
   <p id="graph-status" class="info-text">Click Analyze to generate the graph.</p>
   <p class="info-text">Drag nodes to explore. Hover to see details. Larger nodes have higher PageRank scores.</p>
 
-  <a href="/" class="back-btn">← Back to Home</a>
 </div>
 
 <div id="tooltip" style="
@@ -50,7 +56,7 @@
   backdrop-filter:blur(10px); z-index:2000;
 "></div>
 
-<script src="/static/graph/graph.js"></script>
+<script src="/static/pagerank/pagerank.js"></script>
 
 </body>
 </html>
