@@ -90,7 +90,7 @@ async function runAnalysis() {
       fetch(`/api/ecosystem/overview?${qs}`),
       fetch(`/api/ecosystem/token-breakdown?network=${network}`),
       fetch(`/api/ecosystem/x402-timeline?${qs}`),
-      fetch(`/api/ecosystem/top-agents?network=${network}&limit=20`),
+      fetch(`/api/ecosystem/top-agents?${qs}&limit=20`),
     ]);
 
     const overview  = await overviewRes.json();

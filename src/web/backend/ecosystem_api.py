@@ -108,21 +108,41 @@ def ecosystem_x402_timeline(
 @router.get("/api/ecosystem/top-agents")
 def ecosystem_top_agents(
     network: str = Query("ethereum"),
+    token: str | None = None,
     limit: int = Query(20, ge=1, le=100),
 ):
     network = network.upper()
+    tok = token if token else None
 
-    query = """
-        SELECT address, tx_count, volume, top_token
-        FROM mv_ecosystem_x402_agents
-        WHERE network = %s
-        ORDER BY volume DESC
-        LIMIT %s
-    """
+    if tok:
+        # Token selected: simple filter, top_token is the selected token itself
+        query = """
+            SELECT address, tx_count, volume, token_symbol AS top_token
+            FROM mv_ecosystem_x402_agents
+            WHERE network = %s AND token_symbol = %s
+            ORDER BY volume DESC
+            LIMIT %s
+        """
+        params = (network, tok, limit)
+    else:
+        # All tokens: sum across tokens, derive top_token as the one with most volume
+        query = """
+            SELECT
+                address,
+                SUM(tx_count) AS tx_count,
+                SUM(volume)   AS volume,
+                (array_agg(token_symbol ORDER BY volume DESC))[1] AS top_token
+            FROM mv_ecosystem_x402_agents
+            WHERE network = %s
+            GROUP BY address
+            ORDER BY volume DESC
+            LIMIT %s
+        """
+        params = (network, limit)
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (network, limit))
+            cur.execute(query, params)
             rows = cur.fetchall()
 
     return [

@@ -59,26 +59,18 @@ CREATE INDEX IF NOT EXISTS idx_mv_ecosystem_x402_timeline
 ON mv_ecosystem_x402_timeline (network, token_symbol, period);
 
 -- ── Materialized view 4: top x402 agents ────────────────────────────────────
--- Per-agent totals + their highest-volume token, used for the leaderboard table.
+-- Groups by (network, token_symbol, from_address) so the leaderboard can be
+-- filtered by token the same way as the other charts.
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_ecosystem_x402_agents AS
 SELECT
     network,
-    from_address                                      AS address,
-    COUNT(*)                                          AS tx_count,
-    SUM(value)                                        AS volume,
-    (
-        SELECT token_symbol
-        FROM transfers t2
-        WHERE t2.network = t.network
-          AND t2.from_address = t.from_address
-          AND t2.is_from_x402 = true
-        GROUP BY token_symbol
-        ORDER BY SUM(value) DESC
-        LIMIT 1
-    )                                                 AS top_token
-FROM transfers t
+    token_symbol,
+    from_address AS address,
+    COUNT(*)     AS tx_count,
+    SUM(value)   AS volume
+FROM transfers
 WHERE is_from_x402 = true
-GROUP BY network, from_address;
+GROUP BY network, token_symbol, from_address;
 
 CREATE INDEX IF NOT EXISTS idx_mv_ecosystem_x402_agents
-ON mv_ecosystem_x402_agents (network, volume DESC);
+ON mv_ecosystem_x402_agents (network, token_symbol, volume DESC);
