@@ -385,6 +385,43 @@ def update_bridge_entity_flags(
     )
 
 
+
+# ----------------------------
+# GRAPH 
+# ----------------------------
+
+def upsert_pagerank_scores(network: str, token_symbol: str | None, ranks: dict):
+    """
+    Saves PageRank results into DB.
+    """
+
+    query = """
+        INSERT INTO pagerank_scores (
+            network,
+            token_symbol,
+            address,
+            score
+        )
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (network, token_symbol, address)
+        DO UPDATE SET
+            score = EXCLUDED.score,
+            computed_at = NOW();
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            for address, score in ranks.items():
+                cur.execute(query, (
+                    network,
+                    token_symbol,
+                    address,
+                    float(score)
+                ))
+
+            conn.commit()
+            
+
 # ----------------------------
 # UTILITIES
 # ----------------------------

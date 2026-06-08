@@ -5,3 +5,5 @@ pyyaml
 psycopg2-binary 
 sqlalchemy
 click
+networkx
+scipy
