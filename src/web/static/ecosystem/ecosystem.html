@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChainFlow — Ecosystem Overview</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/base.css" />
+  <link rel="stylesheet" href="/static/ecosystem/ecosystem.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <a class="navbar-brand" href="/">ChainFlow</a>
+  <a class="navbar-link" href="/">Home</a>
+  <a class="navbar-link" href="/graph">PageRank Explorer</a>
+  <a class="navbar-link" href="/flow">Flow Explorer</a>
+  <a class="navbar-link active" href="/ecosystem">Ecosystem Overview</a>
+</nav>
+
+<div class="eco-layout">
+
+  <!-- ── Sidebar Controls ── -->
+  <aside class="eco-sidebar">
+    <h2>Ecosystem Overview</h2>
+    <p class="sidebar-desc">Analyze how CEX, Bridge, x402 agents, and regular wallets contribute to stablecoin flows.</p>
+
+    <div class="control-group">
+      <label for="network">Network</label>
+      <select id="network"><option value="">Loading…</option></select>
+    </div>
+
+    <div class="control-group">
+      <label for="token">Asset</label>
+      <select id="token">
+        <option value="">All assets</option>
+      </select>
+    </div>
+
+    <button id="refresh">Analyze</button>
+
+    <p id="status" class="info-text" style="display:none;"></p>
+
+    <!-- KPI strip -->
+    <div id="kpis" style="display:none; margin-top:20px;">
+      <div class="kpi-row">
+        <div class="kpi-box">
+          <div class="kpi-label">Total Volume</div>
+          <div class="kpi-value" id="kpi-volume">—</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Total Txs</div>
+          <div class="kpi-value" id="kpi-txs">—</div>
+        </div>
+      </div>
+      <div class="kpi-row" style="margin-top:10px;">
+        <div class="kpi-box kpi-accent">
+          <div class="kpi-label">x402 Volume Share</div>
+          <div class="kpi-value" id="kpi-x402-share">—</div>
+        </div>
+        <div class="kpi-box kpi-accent">
+          <div class="kpi-label">x402 Tx Share</div>
+          <div class="kpi-value" id="kpi-x402-txs">—</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main Charts ── -->
+  <main class="eco-main">
+
+    <div id="empty-state" class="empty-state">
+      <div class="empty-icon">🌐</div>
+      <p>Select a network and click <strong>Analyze</strong> to load the ecosystem overview.</p>
+    </div>
+
+    <div id="charts-grid" style="display:none;">
+
+      <!-- Row 1 -->
+      <div class="chart-card chart-card--donut">
+        <div class="chart-header">
+          <h3>Volume by Entity Type</h3>
+          <span class="chart-sub">Share of total transfer volume</span>
+        </div>
+        <div class="donut-wrap">
+          <canvas id="chart-volume-donut"></canvas>
+          <div id="donut-center"></div>
+        </div>
+      </div>
+
+      <div class="chart-card chart-card--bar">
+        <div class="chart-header">
+          <h3>Transaction Count by Entity Type</h3>
+          <span class="chart-sub">Number of transfers per segment</span>
+        </div>
+        <canvas id="chart-txcount-bar"></canvas>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="chart-card chart-card--token">
+        <div class="chart-header">
+          <h3>x402 Agent Token Usage</h3>
+          <span class="chart-sub">Volume by stablecoin for x402 agents</span>
+        </div>
+        <canvas id="chart-token-bar"></canvas>
+        <p id="no-x402-tokens" class="no-data-msg" style="display:none;">No x402 agent transfers found for this network.</p>
+      </div>
+
+      <!-- Row 3 full-width: top x402 agents -->
+      <div class="chart-card chart-card--timeline">
+        <div class="chart-header">
+          <h3>Top x402 Agents</h3>
+          <span class="chart-sub">Ranked by volume — click address to open in Flow Explorer</span>
+        </div>
+        <div id="agents-table-wrap">
+          <table class="agents-table" id="agents-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Address</th>
+                <th>Top Token</th>
+                <th>Tx Count</th>
+                <th>Volume</th>
+              </tr>
+            </thead>
+            <tbody id="agents-tbody"></tbody>
+          </table>
+          <p id="no-agents" class="no-data-msg" style="display:none;">No x402 agents found for this network.</p>
+        </div>
+      </div>
+
+      <!-- Row 4 full-width: timeline -->
+      <div class="chart-card chart-card--timeline">
+        <div class="chart-header">
+          <h3>x402 Agent Activity Over Time</h3>
+          <span class="chart-sub">Monthly transaction count &amp; volume</span>
+        </div>
+        <canvas id="chart-timeline"></canvas>
+        <p id="no-timeline" class="no-data-msg" style="display:none;">No x402 timeline data for this selection.</p>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<script src="/static/ecosystem/ecosystem.js"></script>
+</body>
+</html>
