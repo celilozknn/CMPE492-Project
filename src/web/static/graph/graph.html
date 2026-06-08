@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Blockchain PageRank Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChainFlow - PageRank Analysis</title>
 
   <script src="https://d3js.org/d3.v7.min.js"></script>
   <link rel="stylesheet" href="/static/base.css" />
@@ -10,31 +11,36 @@
 
 <body>
 
+<svg id="graph"></svg>
+
 <div id="ui">
-  <h2>Blockchain PageRank Dashboard</h2>
+  <h2>PageRank Analysis</h2>
 
-  <label>
-    Network:
+  <div class="control-group">
+    <label for="network">Network</label>
     <select id="network">
-      <option value="ethereum">ethereum</option>
-      <option value="bitcoin">bitcoin</option>
+      <option value="">Loading...</option>
     </select>
-  </label>
+  </div>
 
-  <label>
-    Token:
-    <input id="token" placeholder="optional (e.g. USDC)" />
-  </label>
+  <div class="control-group">
+    <label for="token">Asset</label>
+    <select id="token">
+      <option value="">All assets</option>
+    </select>
+  </div>
 
-  <label>
-    Top N:
+  <div class="control-group">
+    <label for="topN">Top Wallets</label>
     <input id="topN" type="number" value="50" min="1" max="500" />
-  </label>
+  </div>
 
-  <button id="refresh">Load</button>
+  <button id="refresh">Analyze</button>
+  
+  <p class="info-text">💡 Drag nodes to explore. Hover to see details. Larger nodes have higher PageRank scores.</p>
+
+  <a href="/" class="back-btn">← Back to Home</a>
 </div>
-
-<svg></svg>
 
 <script src="/static/graph.js"></script>
 

@@ -1,153 +1,280 @@
-const svg = d3.select("svg");
-svg.attr("viewBox", `0 0 ${window.innerWidth} ${window.innerHeight}`);
+// ===== Graph Initialization =====
 
+const svg = d3.select("#graph");
 let simulation;
+let currentGraph = null;
 
-async function loadGraph() {
-    const network = document.getElementById("network").value;
-    const token = document.getElementById("token").value || "";
-    const top_n = document.getElementById("topN").value;
-
-    const url = `api/graph?network=${network}&top_n=${top_n}` + (token ? `&token=${token}` : "");
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    const nodes = data.nodes;
-    const links = data.edges;
-
-    const color = d3.scaleSequential()
-        .domain(d3.extent(nodes, d => d.score))
-        .interpolator(d3.interpolatePlasma);
-
-    svg.selectAll("*").remove();
-
-    simulation = d3.forceSimulation(nodes)
-        .force("link", d3.forceLink(links).id(d => d.address).distance(70))
-        .force("charge", d3.forceManyBody().strength(-120))
-        .force("center", d3.forceCenter(window.innerWidth / 2, window.innerHeight / 2));
-
-    // Arrow marker (flow direction)
-    svg.append("defs").append("marker")
-        .attr("id", "arrow")
-        .attr("viewBox", "0 -5 10 10")
-        .attr("refX", 18)
-        .attr("refY", 0)
-        .attr("markerWidth", 6)
-        .attr("markerHeight", 6)
-        .attr("orient", "auto")
-        .append("path")
-        .attr("d", "M0,-5L10,0L0,5")
-        .attr("fill", "#6b7280");
-
-    const link = svg.append("g")
-        .selectAll("line")
-        .data(links)
-        .enter()
-        .append("line")
-        .attr("class", "link")
-        .attr("marker-end", "url(#arrow)");
-
-    const node = svg.append("g")
-        .selectAll("circle")
-        .data(nodes)
-        .enter()
-        .append("circle")
-        .attr("class", "node")
-        .attr("r", d => Math.max(4, d.score * 2000))
-        .attr("fill", d => color(d.score))
-        .attr("opacity", 0.9)
-        .call(
-            d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended)
-        );
-
-    node.append("title")
-        .text(d => `${d.address}\nscore: ${d.score.toFixed(6)}`);
-
-    simulation.on("tick", () => {
-        link
-            .attr("x1", d => d.source.x)
-            .attr("y1", d => d.source.y)
-            .attr("x2", d => d.target.x)
-            .attr("y2", d => d.target.y);
-
-        node
-            .attr("cx", d => d.x)
-            .attr("cy", d => d.y);
-    });
-
-    function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-    }
-
-    function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-    }
-
-    function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-    }
-}
+// ===== State Management =====
 
 let META = {
-    networks: [],
-    stablecoins: [],
-    compatibility: {}
+  networks: [],
+  stablecoins: [],
+  compatibility: {}
 };
 
+// ===== Load Metadata =====
+
 async function loadMeta() {
-    const [n, s, c] = await Promise.all([
-        fetch("/meta/networks").then(r => r.json()),
-        fetch("/meta/stablecoins").then(r => r.json()),
-        fetch("/meta/compatibility").then(r => r.json())
+  try {
+    const [networksRes, stablecoinsRes, compatibilityRes] = await Promise.all([
+      fetch("/meta/networks"),
+      fetch("/meta/stablecoins"),
+      fetch("/meta/compatibility")
     ]);
 
-    META.networks = n.networks;
-    META.stablecoins = s.stablecoins;
-    META.compatibility = c;
+    if (!networksRes.ok || !stablecoinsRes.ok || !compatibilityRes.ok) {
+      throw new Error("Failed to load metadata");
+    }
 
-    renderFilters();
+    const networks = await networksRes.json();
+    const stablecoins = await stablecoinsRes.json();
+    const compatibility = await compatibilityRes.json();
+
+    META.networks = networks.networks || [];
+    META.stablecoins = stablecoins.stablecoins || [];
+    META.compatibility = compatibility;
+
+    populateNetworkDropdown();
+    updateAssetDropdown();
+    
+    // Load graph on first load
+    loadGraph();
+  } catch (error) {
+    console.error("Error loading metadata:", error);
+    showError("Failed to load network configuration");
+  }
 }
 
-function renderFilters() {
-    const networkSelect = document.getElementById("network");
-    const tokenSelect = document.getElementById("token");
+// ===== Populate Network Dropdown =====
 
-    networkSelect.innerHTML = META.networks
-        .map(n => `<option value="${n}">${n}</option>`)
-        .join("");
+function populateNetworkDropdown() {
+  const networkSelect = document.getElementById("network");
+  
+  if (META.networks.length === 0) {
+    networkSelect.innerHTML = '<option value="">No networks available</option>';
+    return;
+  }
 
-    tokenSelect.innerHTML = `
-        <option value="">all tokens</option>
-        ${META.stablecoins.map(s =>
-            `<option value="${s}">${s}</option>`
-        ).join("")}
-    `;
+  networkSelect.innerHTML = META.networks
+    .map(network => `<option value="${network}">${network}</option>`)
+    .join("");
 
-    networkSelect.onchange = filterTokens;
+  // Set first network as default
+  networkSelect.value = META.networks[0];
 }
 
-function filterTokens() {
+// ===== Update Asset Dropdown Based on Network =====
+
+function updateAssetDropdown() {
+  const networkSelect = document.getElementById("network");
+  const tokenSelect = document.getElementById("token");
+  const selectedNetwork = networkSelect.value;
+
+  if (!selectedNetwork) {
+    tokenSelect.innerHTML = '<option value="">Select a network first</option>';
+    return;
+  }
+
+  // Get compatible stablecoins for selected network
+  const compatibleAssets = Object.entries(META.compatibility)
+    .filter(([_, networks]) => networks.includes(selectedNetwork))
+    .map(([asset, _]) => asset);
+
+  tokenSelect.innerHTML = `
+    <option value="">All assets</option>
+    ${compatibleAssets
+      .map(asset => `<option value="${asset}">${asset}</option>`)
+      .join("")}
+  `;
+}
+
+// ===== Load and Render Graph =====
+
+async function loadGraph() {
+  try {
     const network = document.getElementById("network").value;
-    const tokenSelect = document.getElementById("token");
+    const token = document.getElementById("token").value || "";
+    const topN = document.getElementById("topN").value;
 
-    const allowed = Object.entries(META.compatibility)
-        .filter(([token, nets]) => nets.includes(network))
-        .map(([token]) => token);
+    if (!network) {
+      showError("Please select a network");
+      return;
+    }
 
-    tokenSelect.innerHTML = `
-        <option value="">all tokens</option>
-        ${allowed.map(t => `<option value="${t}">${t}</option>`).join("")}
-    `;
+    // Build API URL
+    const params = new URLSearchParams({
+      network: network,
+      top_n: topN
+    });
+
+    if (token) {
+      params.append("token", token);
+    }
+
+    const url = `/api/graph?${params.toString()}`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.nodes || data.nodes.length === 0) {
+      showError("No data available for selected filters");
+      return;
+    }
+
+    currentGraph = data;
+    renderGraph(data);
+  } catch (error) {
+    console.error("Error loading graph:", error);
+    showError("Failed to load graph data. Check your API connection.");
+  }
 }
 
-loadMeta().then(loadGraph);
-document.getElementById("refresh").onclick = loadGraph;
+// ===== Render D3 Graph =====
+
+function renderGraph(data) {
+  const nodes = data.nodes;
+  const links = data.edges;
+
+  // Color scale based on PageRank score
+  const color = d3.scaleSequential()
+    .domain(d3.extent(nodes, d => d.score))
+    .interpolator(d3.interpolatePlasma);
+
+  // Clear previous graph
+  svg.selectAll("*").remove();
+
+  // Set viewBox to window dimensions
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+  // Initialize force simulation
+  simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links)
+      .id(d => d.address)
+      .distance(80)
+      .strength(0.3)
+    )
+    .force("charge", d3.forceManyBody()
+      .strength(-150)
+      .distanceMax(500)
+    )
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force("collision", d3.forceCollide()
+      .radius(d => Math.max(6, d.score * 2500) + 2)
+    );
+
+  // Define arrow marker for directed edges
+  const defs = svg.append("defs");
+  defs.append("marker")
+    .attr("id", "arrowhead")
+    .attr("markerWidth", 10)
+    .attr("markerHeight", 10)
+    .attr("refX", 20)
+    .attr("refY", 0)
+    .attr("orient", "auto")
+    .append("path")
+    .attr("d", "M0,-5L10,0L0,5")
+    .attr("fill", "#64748b")
+    .attr("opacity", 0.6);
+
+  // Render links
+  const linkGroup = svg.append("g").attr("class", "links");
+  const link = linkGroup
+    .selectAll("line")
+    .data(links)
+    .enter()
+    .append("line")
+    .attr("class", "link")
+    .attr("marker-end", "url(#arrowhead)");
+
+  // Render nodes
+  const nodeGroup = svg.append("g").attr("class", "nodes");
+  const node = nodeGroup
+    .selectAll("circle")
+    .data(nodes)
+    .enter()
+    .append("circle")
+    .attr("class", "node")
+    .attr("r", d => Math.max(6, d.score * 2500))
+    .attr("fill", d => color(d.score))
+    .attr("opacity", 0.85)
+    .call(d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended)
+    );
+
+  // Add tooltips
+  node.append("title")
+    .text(d => `${d.address}\nPageRank: ${d.score.toFixed(8)}`);
+
+  // Update positions on simulation tick
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    node
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+  });
+
+  // Drag handlers
+  function dragstarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.3).restart();
+    d.fx = d.x;
+    d.fy = d.y;
+  }
+
+  function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
+  }
+
+  function dragended(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
+    d.fx = null;
+    d.fy = null;
+  }
+
+  // Handle window resize
+  window.addEventListener("resize", () => {
+    const newWidth = window.innerWidth;
+    const newHeight = window.innerHeight;
+    svg.attr("viewBox", `0 0 ${newWidth} ${newHeight}`);
+    if (simulation) {
+      simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
+    }
+  });
+}
+
+// ===== Error Display =====
+
+function showError(message) {
+  console.error(message);
+  // Could add toast notification here
+}
+
+// ===== Event Listeners =====
+
+document.getElementById("network").addEventListener("change", () => {
+  updateAssetDropdown();
+});
+
+document.getElementById("refresh").addEventListener("click", loadGraph);
+
+// Allow Enter key to load graph
+document.getElementById("topN").addEventListener("keypress", (e) => {
+  if (e.key === "Enter") loadGraph();
+});
+
+// ===== Initialize =====
+
+loadMeta();

@@ -1,5 +1,3 @@
-import os
-
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -7,7 +5,12 @@ from fastapi.responses import FileResponse
 from .backend.graph_api import router as graph_router
 from .backend.meta_api import router as metadata_router
 
-app = FastAPI(title="Blockchain Graph Dashboard")
+app = FastAPI(
+    title="ChainFlow Dashboard",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
+)
 
 app.include_router(graph_router)
 app.include_router(metadata_router)
