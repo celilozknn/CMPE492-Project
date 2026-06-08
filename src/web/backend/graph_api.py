@@ -4,24 +4,14 @@ from src.graph.graph_service import get_pagerank_scores, get_edges
 
 router = APIRouter()
 
-
-@router.get("/pagerank")
-def pagerank(
-    network: str,
+from fastapi import Query
+    
+@router.get("/api/graph")
+def graph(
+    network: str = Query("ethereum"),
     token: str | None = None,
-    top_n: int = Query(default=100, ge=1, le=1000)
+    top_n: int = Query(50, ge=1, le=500)
 ):
-    rows = get_pagerank_scores(network, token, top_n)
-
-    return {
-        "nodes": [
-            {"address": r["address"], "score": r["score"]}
-            for r in rows
-        ]
-    }
-
-@router.get("/graph")
-def graph(network: str, token: str | None = None, top_n: int = 100):
     nodes_raw = get_pagerank_scores(network, token, top_n)
 
     nodes = [

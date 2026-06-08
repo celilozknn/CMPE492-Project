@@ -69,7 +69,7 @@ def get_pagerank_scores(network: str, token_symbol: str | None, limit: int):
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (network, token_symbol, token_symbol, limit))
+            cur.execute(query, (network.upper(), token_symbol, token_symbol, limit))
             return cur.fetchall()
 
 def get_edges(network: str, token_symbol: str | None, nodes: list[str]):
@@ -84,6 +84,6 @@ def get_edges(network: str, token_symbol: str | None, nodes: list[str]):
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (network, token_symbol, token_symbol, nodes, nodes))
+            cur.execute(query, (network.upper(), token_symbol, token_symbol, nodes, nodes))
             return cur.fetchall()
         

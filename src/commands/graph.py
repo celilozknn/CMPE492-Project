@@ -36,7 +36,6 @@ def graph(ctx, network, token, top, save):
 
     Example:
       python3 src/cli.py graph --network ethereum
-      python3 src/cli.py graph --network polygon --token USDT
     """
 
     logger = ctx.obj["logger"]

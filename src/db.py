@@ -406,7 +406,7 @@ def upsert_pagerank_scores(network: str, token_symbol: str | None, ranks: dict):
         ON CONFLICT (network, token_symbol, address)
         DO UPDATE SET
             score = EXCLUDED.score,
-            computed_at = NOW();
+            updated_at = NOW();
     """
 
     with get_connection() as conn:
