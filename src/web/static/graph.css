@@ -1,0 +1,63 @@
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system;
+  background: #0b0f19;
+  overflow: hidden;
+}
+
+svg {
+  width: 100vw;
+  height: 100vh;
+}
+
+.link {
+  stroke: #2a2f3a;
+  stroke-opacity: 0.6;
+}
+
+.node {
+  fill: #4f7cff;
+  cursor: pointer;
+}
+
+.panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: rgba(20, 24, 35, 0.85);
+  backdrop-filter: blur(10px);
+  padding: 14px;
+  border-radius: 12px;
+  color: white;
+  width: 260px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+select, input, button {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #2a2f3a;
+  background: #111827;
+  color: white;
+}
+
+button {
+  background: #4f7cff;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #3b63ff;
+}

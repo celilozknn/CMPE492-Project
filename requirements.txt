@@ -7,3 +7,5 @@ sqlalchemy
 click
 networkx
 scipy
+fastapi
+uvicorn

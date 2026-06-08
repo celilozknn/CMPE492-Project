@@ -4,9 +4,9 @@ import dotenv
 from psycopg2.extras import RealDictCursor, execute_values 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from paths import *
-from helpers import *
-from enums import *
+from src.paths import *
+from src.helpers import *
+from src.enums import *
 
 dotenv.load_dotenv()
 

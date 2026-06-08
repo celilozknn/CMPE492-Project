@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Blockchain PageRank Dashboard</title>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <link rel="stylesheet" href="/static/graph.css" />
+</head>
+
+<body>
+
+<div id="ui">
+  <h2>Blockchain PageRank Dashboard</h2>
+
+  <label>
+    Network:
+    <select id="network">
+      <option value="ethereum">ethereum</option>
+      <option value="bitcoin">bitcoin</option>
+    </select>
+  </label>
+
+  <label>
+    Token:
+    <input id="token" placeholder="optional (e.g. USDC)" />
+  </label>
+
+  <label>
+    Top N:
+    <input id="topN" type="number" value="50" min="1" max="500" />
+  </label>
+
+  <button id="refresh">Load</button>
+</div>
+
+<svg></svg>
+
+<script src="/static/graph.js"></script>
+
+</body>
+</html>
