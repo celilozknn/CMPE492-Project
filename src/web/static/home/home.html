@@ -168,6 +168,7 @@
   <a class="navbar-link active" href="/">Home</a>
   <a class="navbar-link" href="/graph">PageRank Explorer</a>
   <a class="navbar-link" href="/flow">Flow Explorer</a>
+  <a class="navbar-link" href="/ecosystem">Ecosystem Overview</a>
 </nav>
 
 <div class="container" style="max-width:1100px;">
@@ -209,6 +210,19 @@
         <div class="feature-item">Sample active addresses to explore</div>
       </div>
       <span class="tag" style="margin-top:8px;">wallet analysis</span>
+    </a>
+
+    <a class="tool-card" href="/ecosystem">
+      <div class="icon">🌐</div>
+      <h2>Ecosystem Overview</h2>
+      <p>Network-level breakdown of stablecoin flows by entity type. See how much volume and how many transactions originate from CEXes, bridges, x402 AI agents, and regular wallets — and track x402 adoption over time.</p>
+      <div class="feature-list" style="margin-top:4px;">
+        <div class="feature-item">Volume &amp; tx share by CEX / Bridge / x402 / Regular</div>
+        <div class="feature-item">x402 agent token usage breakdown</div>
+        <div class="feature-item">Monthly x402 activity timeline</div>
+        <div class="feature-item">Filter by network &amp; stablecoin</div>
+      </div>
+      <span class="tag" style="margin-top:8px;">ecosystem analysis</span>
     </a>
 
   </div>
@@ -253,8 +267,9 @@
     extraction pipeline collects transfer data across Ethereum, Polygon, Arbitrum, Optimism, and Avalanche.
     Transaction graphs are constructed per network and stablecoin, and PageRank is applied to identify
     structurally influential addresses. Wallets are classified into entity types — CEX, Bridge, x402 agents,
-    and regular wallets — to enrich the analysis. The dashboard provides two interactive tools for exploring
-    the dataset: a graph-based PageRank view and a per-wallet flow explorer.
+    and regular wallets — to enrich the analysis. The dashboard provides three interactive tools for exploring
+    the dataset: a graph-based PageRank view, a per-wallet flow explorer, and an ecosystem overview that
+    quantifies the share of volume and transactions attributable to x402 AI agents versus traditional entity types.
     <br><br>
     <span style="color:#64748b; font-size:12px;">
       Supervisor: Prof. Can Özturan &nbsp;·&nbsp;

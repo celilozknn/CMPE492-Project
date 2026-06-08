@@ -213,8 +213,9 @@ function renderGraph(data) {
   // Clear previous graph
   svg.selectAll("*").remove();
 
-  const width = window.innerWidth;
-  const height = window.innerHeight;
+  const wrap = document.getElementById("graph-wrap");
+  const width = wrap.clientWidth;
+  const height = wrap.clientHeight;
   svg.attr("viewBox", `0 0 ${width} ${height}`);
 
   const zoomLayer = svg.append("g");
@@ -369,8 +370,9 @@ function renderGraph(data) {
 
   // Handle window resize
   window.addEventListener("resize", () => {
-    const newWidth = window.innerWidth;
-    const newHeight = window.innerHeight;
+    const wrap = document.getElementById("graph-wrap");
+    const newWidth = wrap.clientWidth;
+    const newHeight = wrap.clientHeight;
     svg.attr("viewBox", `0 0 ${newWidth} ${newHeight}`);
     if (simulation) {
       simulation.force("center", d3.forceCenter(newWidth / 2, newHeight / 2));
