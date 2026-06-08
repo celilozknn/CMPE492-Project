@@ -4,8 +4,8 @@ import json
 import logging
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from paths import *
-from enums import *
+from src.paths import *
+from src.enums import *
     
 
 def get_token_address(network: Networks, token: StableCoins) -> str:

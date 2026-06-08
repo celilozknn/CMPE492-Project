@@ -3,7 +3,7 @@ from helpers import get_logger
 from commands.fetch import fetch
 from commands.classify_agents import classify_agents
 from commands.classify_adresses import classify_addresses
-# from commands.graph import graph  # future
+from commands.graph import graph 
             
 @click.group(invoke_without_command=True)
 @click.pass_context
@@ -21,7 +21,7 @@ def cli(ctx):
             ("fetch", "Fetch transfer logs from blockchain"),
             ("classify_agents", "Classify given transfer logs with x402 agent classifier"),
             ("classify_addresses", "Classify addresses (CEX, DEX, etc.)"),
-            ("graph", "Generate network graphs [coming soon]"),
+            ("graph", "Generate network graphs"),
         ]
         max_len = max(len(cmd[0]) for cmd in commands)
         for cmd, desc in commands:
@@ -31,7 +31,7 @@ def cli(ctx):
 cli.add_command(fetch)
 cli.add_command(classify_agents)
 cli.add_command(classify_addresses)
-# cli.add_command(graph)  # future
+cli.add_command(graph)
 
 if __name__ == '__main__':
     cli()

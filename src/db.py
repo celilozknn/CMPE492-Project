@@ -4,9 +4,9 @@ import dotenv
 from psycopg2.extras import RealDictCursor, execute_values 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from paths import *
-from helpers import *
-from enums import *
+from src.paths import *
+from src.helpers import *
+from src.enums import *
 
 dotenv.load_dotenv()
 
@@ -384,6 +384,65 @@ def update_bridge_entity_flags(
         f"deposit={len(deposit_list)} withdrawal={len(withdrawal_list)}"
     )
 
+
+
+# ----------------------------
+# GRAPH 
+# ----------------------------
+
+def upsert_pagerank_edges(network: str, token_symbol: str | None, edges: list[tuple[str, str]]):
+    """
+    Saves edges between top-ranked nodes into pagerank_edges.
+    edges: list of (from_address, to_address)
+    """
+    if not edges:
+        return
+
+    query = """
+        INSERT INTO pagerank_edges (network, token_symbol, from_address, to_address)
+        VALUES %s
+        ON CONFLICT (network, token_symbol, from_address, to_address) DO NOTHING;
+    """
+
+    rows = [(network, token_symbol, f, t) for f, t in edges]
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            execute_values(cur, query, rows)
+            conn.commit()
+
+
+def upsert_pagerank_scores(network: str, token_symbol: str | None, ranks: dict):
+    """
+    Saves PageRank results into DB.
+    """
+
+    query = """
+        INSERT INTO pagerank_scores (
+            network,
+            token_symbol,
+            address,
+            score
+        )
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (network, token_symbol, address)
+        DO UPDATE SET
+            score = EXCLUDED.score,
+            updated_at = NOW();
+    """
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            for address, score in ranks.items():
+                cur.execute(query, (
+                    network,
+                    token_symbol,
+                    address,
+                    float(score)
+                ))
+
+            conn.commit()
+            
 
 # ----------------------------
 # UTILITIES

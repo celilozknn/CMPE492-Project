@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChainFlow - Stablecoin Analysis Dashboard</title>
+  <link rel="stylesheet" href="/static/base.css" />
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="hero">
+    <h1>ChainFlow</h1>
+    <p>Graph-based analysis of stablecoin flows across EVM networks</p>
+  </div>
+
+  <div class="grid">
+
+    <!-- PageRank Dashboard -->
+    <a class="card grid-span-2" href="/graph">
+      <h2>PageRank Engine</h2>
+      <p>Visualize network topology and identify influential wallet addresses through transaction flow analysis.</p>
+      <div class="feature-list">
+        <div class="feature-item">Interactive force-directed graph</div>
+        <div class="feature-item">Real-time PageRank scoring</div>
+        <div class="feature-item">Multi-chain & asset filtering</div>
+      </div>
+      <span class="tag">core system</span>
+    </a>
+
+    <!-- Networks -->
+    <div class="card">
+      <h2>Networks</h2>
+      <p>Supported EVM chains for transaction analysis</p>
+      <div class="feature-list">
+        <div class="feature-item">Ethereum</div>
+        <div class="feature-item">Polygon</div>
+        <div class="feature-item">Arbitrum</div>
+        <div class="feature-item">Optimism</div>
+        <div class="feature-item">Avalanche</div>
+      </div>
+    </div>
+
+    <!-- Stablecoins -->
+    <div class="card">
+      <h2>Assets</h2>
+      <p>Tracked stablecoins across chains</p>
+      <div class="feature-list">
+        <div class="feature-item">USDT</div>
+        <div class="feature-item">USDC</div>
+        <div class="feature-item">DAI</div>
+        <div class="feature-item">XAUT (Etherum Only)</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+</body>
+</html>
