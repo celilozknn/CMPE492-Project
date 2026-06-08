@@ -6,13 +6,13 @@ router = APIRouter(prefix="/meta")
 @router.get("/networks")
 def get_networks():
     return {
-        "networks": [n.value for n in Networks]
+        "networks": [n.value.capitalize() for n in Networks]
     }
     
 @router.get("/stablecoins")
 def get_stablecoins():
     return {
-        "stablecoins": [s.value for s in StableCoins]
+        "stablecoins": [s.value.capitalize() for s in StableCoins]
     }
 
 @router.get("/compatibility")
@@ -42,6 +42,7 @@ def get_compatibility():
         ],
         Networks.AVALANCHE.value: [
             StableCoins.USDT.value,
-            StableCoins.USDC.value
+            StableCoins.USDC.value,
+            StableCoins.DAI.value
         ],
     }

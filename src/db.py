@@ -390,6 +390,28 @@ def update_bridge_entity_flags(
 # GRAPH 
 # ----------------------------
 
+def upsert_pagerank_edges(network: str, token_symbol: str | None, edges: list[tuple[str, str]]):
+    """
+    Saves edges between top-ranked nodes into pagerank_edges.
+    edges: list of (from_address, to_address)
+    """
+    if not edges:
+        return
+
+    query = """
+        INSERT INTO pagerank_edges (network, token_symbol, from_address, to_address)
+        VALUES %s
+        ON CONFLICT (network, token_symbol, from_address, to_address) DO NOTHING;
+    """
+
+    rows = [(network, token_symbol, f, t) for f, t in edges]
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            execute_values(cur, query, rows)
+            conn.commit()
+
+
 def upsert_pagerank_scores(network: str, token_symbol: str | None, ranks: dict):
     """
     Saves PageRank results into DB.
