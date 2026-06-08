@@ -106,6 +106,9 @@ async function loadGraph() {
     status.textContent = "Fetching graph data…";
     status.style.color = "#94a3b8";
 
+    const panel = document.getElementById("stats-panel");
+    if (panel) panel.innerHTML = `<div style="font-size:12px;color:#475569">Loading dataset info…</div>`;
+
     const params = new URLSearchParams({ network, top_n: topN });
     if (token) params.append("token", token);
 
@@ -330,8 +333,16 @@ function renderGraph(data) {
     link
       .attr("x1", d => d.source.x)
       .attr("y1", d => d.source.y)
-      .attr("x2", d => d.target.x)
-      .attr("y2", d => d.target.y);
+      .attr("x2", d => {
+        const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        return dist === 0 ? d.target.x : d.target.x - (dx / dist) * nodeRadius(d.target);
+      })
+      .attr("y2", d => {
+        const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        return dist === 0 ? d.target.y : d.target.y - (dy / dist) * nodeRadius(d.target);
+      });
 
     node
       .attr("cx", d => d.x)
