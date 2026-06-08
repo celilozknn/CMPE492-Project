@@ -14,6 +14,7 @@
   <a class="navbar-link" href="/">Home</a>
   <a class="navbar-link" href="/graph">PageRank Explorer</a>
   <a class="navbar-link active" href="/flow">Flow Explorer</a>
+  <a class="navbar-link" href="/ecosystem">Ecosystem Overview</a>
 </nav>
 
 <div class="container" style="padding: 40px 20px;">
@@ -51,10 +52,23 @@
       <div class="flow-panel">
         <div class="panel-header">
           <h3>Recent Transfers</h3>
-          <div class="dir-tabs">
-            <button class="dir-tab active" data-dir="all">All</button>
-            <button class="dir-tab" data-dir="sent">Sent</button>
-            <button class="dir-tab" data-dir="received">Received</button>
+        </div>
+        <div class="filter-bar">
+          <div class="filter-row">
+            <span class="filter-label">Direction</span>
+            <div class="filter-chips">
+              <button class="filter-chip active" data-dir="all">All</button>
+              <button class="filter-chip" data-dir="sent">Sent</button>
+              <button class="filter-chip" data-dir="received">Received</button>
+            </div>
+          </div>
+          <div class="filter-row">
+            <span class="filter-label">Token</span>
+            <div class="filter-chips" id="token-filter-chips"></div>
+          </div>
+          <div class="filter-row">
+            <span class="filter-label">Counterparty</span>
+            <div class="filter-chips" id="counterparty-filter-chips"></div>
           </div>
         </div>
         <div id="transfers-table-wrap">
@@ -71,6 +85,7 @@
             <tbody id="transfers-body"></tbody>
           </table>
         </div>
+        <div id="pagination-controls"></div>
       </div>
 
       <div class="flow-panel">

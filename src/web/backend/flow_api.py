@@ -69,19 +69,34 @@ def flow_summary(
     }
 
 
+_SORT_COLS = {
+    "timestamp": "block_timestamp",
+    "value":     "value",
+    "token":     "token_symbol",
+    "direction": "CASE WHEN from_address = %s THEN 'sent' ELSE 'received' END",
+}
+
 @router.get("/api/flow/transfers")
 def flow_transfers(
     address: str = Query(...),
     network: str = Query("ethereum"),
     token: str | None = None,
     direction: str = Query("all"),   # all | sent | received
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(20, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    sort_by: str = Query("timestamp"),
+    sort_order: str = Query("desc"),
+    counterparty: str | None = None,
 ):
     address = address.lower()
     network = network.upper()
     token = _token(token)
+    cp = counterparty.lower() if counterparty else None
 
-    if direction == "sent":
+    if cp:
+        addr_filter = "((from_address = %s AND to_address = %s) OR (from_address = %s AND to_address = %s))"
+        params_addr = (address, cp, cp, address)
+    elif direction == "sent":
         addr_filter = "from_address = %s"
         params_addr = (address,)
     elif direction == "received":
@@ -90,6 +105,15 @@ def flow_transfers(
     else:
         addr_filter = "(from_address = %s OR to_address = %s)"
         params_addr = (address, address)
+
+    sort_col = _SORT_COLS.get(sort_by, "block_timestamp")
+    order = "DESC" if sort_order.lower() != "asc" else "ASC"
+
+    # direction sort col needs the address substituted inline
+    if sort_by == "direction":
+        order_clause = f"CASE WHEN from_address = '{address}' THEN 'sent' ELSE 'received' END {order}"
+    else:
+        order_clause = f"{sort_col} {order}"
 
     query = f"""
         SELECT
@@ -104,13 +128,13 @@ def flow_transfers(
         WHERE network = %s
         AND (%s IS NULL OR token_symbol = %s)
         AND {addr_filter}
-        ORDER BY block_timestamp DESC
-        LIMIT %s
+        ORDER BY {order_clause}
+        LIMIT %s OFFSET %s
     """
 
     with get_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(query, (address, network, token, token, *params_addr, limit))
+            cur.execute(query, (address, network, token, token, *params_addr, limit, offset))
             rows = cur.fetchall()
 
     return [
@@ -139,36 +163,29 @@ def flow_counterparties(
     token = _token(token)
 
     query = """
-        SELECT
-            counterparty,
-            SUM(volume)   AS total_volume,
-            SUM(tx_count) AS total_txs,
-            MAX(relation) AS relation
-        FROM (
+        SELECT * FROM (
             SELECT
-                to_address   AS counterparty,
-                SUM(value)   AS volume,
-                COUNT(*)     AS tx_count,
-                'sent'       AS relation
-            FROM transfers
-            WHERE network = %s AND (%s IS NULL OR token_symbol = %s)
-              AND from_address = %s
-            GROUP BY to_address
+                counterparty,
+                COALESCE(SUM(volume) FILTER (WHERE relation = 'sent'),     0) AS sent_volume,
+                COALESCE(SUM(volume) FILTER (WHERE relation = 'received'), 0) AS recv_volume,
+                COALESCE(SUM(tx_count) FILTER (WHERE relation = 'sent'),     0) AS sent_txs,
+                COALESCE(SUM(tx_count) FILTER (WHERE relation = 'received'), 0) AS recv_txs
+            FROM (
+                SELECT to_address   AS counterparty, SUM(value) AS volume, COUNT(*) AS tx_count, 'sent'     AS relation
+                FROM transfers
+                WHERE network = %s AND (%s IS NULL OR token_symbol = %s) AND from_address = %s
+                GROUP BY to_address
 
-            UNION ALL
+                UNION ALL
 
-            SELECT
-                from_address AS counterparty,
-                SUM(value)   AS volume,
-                COUNT(*)     AS tx_count,
-                'received'   AS relation
-            FROM transfers
-            WHERE network = %s AND (%s IS NULL OR token_symbol = %s)
-              AND to_address = %s
-            GROUP BY from_address
-        ) sub
-        GROUP BY counterparty
-        ORDER BY total_volume DESC
+                SELECT from_address AS counterparty, SUM(value) AS volume, COUNT(*) AS tx_count, 'received' AS relation
+                FROM transfers
+                WHERE network = %s AND (%s IS NULL OR token_symbol = %s) AND to_address = %s
+                GROUP BY from_address
+            ) sub
+            GROUP BY counterparty
+        ) agg
+        ORDER BY (sent_volume + recv_volume) DESC
         LIMIT %s
     """
 
@@ -184,9 +201,10 @@ def flow_counterparties(
     return [
         {
             "address":      row["counterparty"],
-            "total_volume": float(row["total_volume"]),
-            "total_txs":    int(row["total_txs"]),
-            "relation":     row["relation"],
+            "sent_volume":  float(row["sent_volume"]),
+            "recv_volume":  float(row["recv_volume"]),
+            "sent_txs":     int(row["sent_txs"]),
+            "recv_txs":     int(row["recv_txs"]),
         }
         for row in rows
     ]
