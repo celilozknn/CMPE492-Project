@@ -1,26 +1,59 @@
 @startuml
-title Blockchain Stablecoin Fetch System - Deployment Diagram
+title ChainFlow - Deployment Diagram
 
-actor Developer
-actor Scheduler
+actor "Data Engineer" as DE
+actor "Analyst / User" as Analyst
 
-node "Developer Machine / CI" {
-    node "CLI (src/cli.py)" 
-    node "Fetcher Client (src/fetcher_client.py)"
+node "Developer Machine" {
+    node "CLI (src/cli.py)" as CLI
+    node "FastAPI Web Server\n(src/web/main.py)" as Web
+    node "Fetcher Client\n(src/fetchers/)" as Fetcher
+    node "Classifier\n(src/classifiers/)" as Classifier
+    node "Graph Engine\n(src/graph/)" as Graph
 }
 
-node "PostgreSQL Container" {
-    database "Transfers & FetchProgress Tables"
+node "Docker Container" {
+    database "PostgreSQL 16\n(chainflow)" as PG {
+        [transfers]
+        [fetch_progress]
+        [pagerank_scores]
+        [pagerank_edges]
+        [materialized views]
+    }
 }
 
-cloud "Infura / RPC Endpoint" {
-    [Ethereum / Polygon / Other Networks]
+cloud "Infura JSON-RPC" {
+    [Ethereum]
+    [Polygon]
+    [Arbitrum]
+    [Optimism]
+    [Avalanche]
 }
 
-Developer --> "CLI (src/cli.py)" : run fetch command
-"CLI (src/cli.py)" --> "Fetcher Client (src/fetcher_client.py)" : execute fetch logic
-"Fetcher Client (src/fetcher_client.py)" --> "Infura / RPC Endpoint" : eth_getLogs
-"Fetcher Client (src/fetcher_client.py)" --> "PostgreSQL Container" : insert logs & progress
-Scheduler --> "CLI (src/cli.py)" : periodic scheduled fetch
+cloud "External APIs" {
+    [8004scan.io\n(x402 agent registry)]
+    [Dune Analytics\n(CEX address data)]
+}
+
+node "Web Browser" as Browser
+
+DE --> CLI : "run fetch / classify / graph"
+CLI --> Fetcher : delegates fetch
+CLI --> Classifier : delegates classification
+CLI --> Graph : delegates PageRank
+
+Fetcher --> "Infura JSON-RPC" : eth_getLogs
+Fetcher --> PG : insert transfers & progress
+
+Classifier --> "External APIs" : fetch CEX / x402 labels
+Classifier --> PG : update entity labels
+
+Graph --> PG : read edges, write scores
+
+DE --> Web : start web server
+Web --> PG : query via API routes
+
+Analyst --> Browser : http://localhost:8000
+Browser --> Web : HTTP GET /graph, /flow, /ecosystem
 
 @enduml

@@ -1,36 +1,99 @@
 @startuml
-title Module Diagram: Project Structure
+title Module Diagram: ChainFlow System Architecture
+
+skinparam packageStyle rectangle
 
 package "CLI Layer" {
     class CLI
-    class "commands.fetch" as FetchCommand
+    class "commands.fetch" as FetchCmd
+    class "commands.classify_addresses" as ClassifyCmd
+    class "commands.classify_agents" as AgentsCmd
+    class "commands.graph" as GraphCmd
 }
 
 package "Fetcher Layer" {
     class FetcherClient
 }
 
+package "Classifier Layer" {
+    class AddressClassifierClient
+    class CexClient
+    class BridgeClient
+    class AgentClassifierClient
+}
+
+package "Graph Layer" {
+    class GraphService
+    class PageRankCompute
+    class GraphQueries
+}
+
+package "Web Layer" {
+    class "FastAPI (main.py)" as FastAPI
+    class "graph_api" as GraphAPI
+    class "flow_api" as FlowAPI
+    class "ecosystem_api" as EcosystemAPI
+    class "meta_api" as MetaAPI
+}
+
 package "Database Layer" {
     class DB
 }
 
-package "Helpers" {
+package "Helpers & Shared" {
     class Helpers
+    class Paths
+    class "enums (Networks, StableCoins)" as Enums
 }
 
-package "Enums & Data" {
-    class Networks
-    class StableCoins
-    class FetchProgress
+package "Config (YAML)" {
+    class "networks.yaml" as NetCfg
+    class "tokens.yaml" as TokCfg
+    class "cex_addresses_*.yaml" as CexCfg
+    class "bridge_deposits_*.yaml" as BridgeCfg
+    class "x402_agent_*.yaml" as X402Cfg
 }
 
-CLI --> FetchCommand
-FetchCommand --> FetcherClient
+CLI --> FetchCmd
+CLI --> ClassifyCmd
+CLI --> AgentsCmd
+CLI --> GraphCmd
+
+FetchCmd --> FetcherClient
 FetcherClient --> DB
 FetcherClient --> Helpers
-DB --> Helpers
-FetcherClient --> Networks
-FetcherClient --> StableCoins
-DB --> FetchProgress
+
+ClassifyCmd --> AddressClassifierClient
+AddressClassifierClient --> CexClient
+AddressClassifierClient --> BridgeClient
+AgentsCmd --> AgentClassifierClient
+
+CexClient --> CexCfg
+BridgeClient --> BridgeCfg
+AgentClassifierClient --> X402Cfg
+FetcherClient --> NetCfg
+FetcherClient --> TokCfg
+
+GraphCmd --> GraphService
+GraphService --> PageRankCompute
+GraphService --> GraphQueries
+GraphService --> DB
+
+AddressClassifierClient --> DB
+AgentClassifierClient --> DB
+
+FastAPI --> GraphAPI
+FastAPI --> FlowAPI
+FastAPI --> EcosystemAPI
+FastAPI --> MetaAPI
+
+GraphAPI --> DB
+FlowAPI --> DB
+EcosystemAPI --> DB
+MetaAPI --> DB
+
+FetcherClient --> Enums
+AddressClassifierClient --> Enums
+GraphService --> Enums
 
 @enduml

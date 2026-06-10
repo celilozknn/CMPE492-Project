@@ -1,25 +1,66 @@
 @startuml
-title ERC-20 Transfer Fetch - Activity Diagram
+title ChainFlow - Full Pipeline Activity Diagram
+
 start
-:Receive CLI parameters;
-if (Auto mode?) then (yes)
-    :Determine start/end blocks from DB and RPC;
-else (manual)
-    :Use provided start/end blocks;
-endif
-repeat
-    :Request eth_getLogs for token addresses;
-    :Decode logs;
-    :Normalize transfer data;
-    :Insert batch into PostgreSQL (conflict-safe);
-    :Write chunk metadata to fetch_progress;
-    if (More blocks to fetch?) then (yes)
-        if (Result set > 10k logs?) then (yes)
-            :Halve chunk size;
-        endif
-    else (no)
-        stop
+
+partition "Phase 1: Data Ingestion" {
+    :Receive fetch CLI parameters\n(network, auto/manual, block range);
+    if (Auto mode?) then (yes)
+        :Query DB for latest processed block;
+        :Query RPC for latest chain block;
+    else (manual)
+        :Use user-supplied start/end blocks;
     endif
-repeat while (more blocks)
+    repeat
+        :Request eth_getLogs for token addresses;
+        if (Result > 10,000 logs?) then (yes)
+            :Halve chunk size and retry;
+        else (no)
+            :Decode raw logs into transfer records;
+            :Batch insert into transfers table\n(ON CONFLICT DO NOTHING);
+            :Write chunk metadata to fetch_progress;
+        endif
+    repeat while (more blocks to fetch?)
+}
+
+partition "Phase 2: Address Classification" {
+    :Run classify_addresses CLI command;
+    fork
+        :Classify Mint/Burn\n(zero-address from/to);
+    fork again
+        :Fetch CEX addresses (Dune Analytics);
+        :Match from_address / to_address;
+        :Set from_entity_class = ['CEX'];
+    fork again
+        :Load Bridge addresses from YAML config;
+        :Match from_address / to_address;
+        :Set from_entity_class = ['BRIDGE'];
+    end fork
+    :Run classify_agents CLI command;
+    :Fetch x402 agents from 8004scan.io API;
+    :Save to x402_agent_addresses_*.yaml;
+    :Update is_from_x402 / is_to_x402 flags in DB;
+}
+
+partition "Phase 3: Graph Analysis" {
+    :Run graph CLI command;
+    :Load aggregated edges from DB\n(from_address, to_address, total_value);
+    :Build directed weighted graph G=(V,E);
+    :Compute PageRank scores (damping=0.85);
+    :Save top-10k scores to pagerank_scores;
+    :Save edges between top-10k nodes\nto pagerank_edges;
+}
+
+partition "Phase 4: Web Dashboard" {
+    :Start FastAPI server;
+    fork
+        :Serve PageRank Explorer\n(D3.js force-directed graph);
+    fork again
+        :Serve Flow Explorer\n(per-wallet inflow/outflow);
+    fork again
+        :Serve Ecosystem Overview\n(CEX/Bridge/x402/Regular breakdown);
+    end fork
+}
+
 stop
 @enduml
