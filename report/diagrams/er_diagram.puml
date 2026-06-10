@@ -1,33 +1,82 @@
 @startuml
-title Blockchain Stablecoin Flow - ER Diagram
+title ChainFlow - ER Diagram
 
 !define Table(name,desc) class name as "name\n<desc>" << (T,#FFAAAA) >>
 !define PK(field) <u>field</u>
+!define FK(field) <i>field</i>
 
-' Tables
+' Core tables
 Table(transfers, "ERC-20 Transfer Events") {
-    PK(tx_hash)
-    PK(log_index)
-    PK(block_number)
+    PK(id)
+    FK(tx_hash)
+    log_index
+    block_number
     block_hash
+    block_timestamp
+    network
+    token_symbol
+    token_address
     from_address
     to_address
     value
     raw_value
-    token_symbol
-    token_address
-    network
+    raw_log
+    event_class
+    from_entity_class  : TEXT[]
+    to_entity_class    : TEXT[]
+    is_from_x402       : BOOL
+    is_to_x402         : BOOL
+    entity_classes     : JSONB
 }
 
 Table(fetch_progress, "Processed Chunk Ranges") {
-    PK(network)
-    PK(chunk_start)
-    PK(chunk_end)
+    PK(id)
+    FK(network)
+    chunk_start
+    chunk_end
     log_count
     completed_at
 }
 
+Table(pagerank_scores, "PageRank Node Scores") {
+    PK(id)
+    FK(network)
+    token_symbol
+    address
+    score
+    updated_at
+}
+
+Table(pagerank_edges, "PageRank Graph Edges") {
+    PK(id)
+    FK(network)
+    token_symbol
+    from_address
+    to_address
+}
+
+' Materialized Views
+Table(mv_ecosystem_segments, "MV: Ecosystem Segments") {
+    network
+    token_symbol
+    segment
+    tx_count
+    volume
+}
+
+Table(mv_ecosystem_x402_timeline, "MV: x402 Monthly Timeline") {
+    network
+    token_symbol
+    period
+    tx_count
+    volume
+}
+
 ' Relationships
-transfers -- fetch_progress : belongs_to [network]
+transfers -- fetch_progress : "grouped by [network]"
+transfers --> pagerank_scores : "from_address\nranked by"
+transfers --> pagerank_edges : "forms edges"
+transfers --> mv_ecosystem_segments : "aggregated into"
+transfers --> mv_ecosystem_x402_timeline : "x402 rows\naggregated into"
 
 @enduml

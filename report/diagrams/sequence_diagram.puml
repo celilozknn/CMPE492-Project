@@ -1,18 +1,63 @@
 @startuml
-title ERC-20 Transfer Fetch - Sequence Diagram
-actor User
-participant CLI
-participant Fetcher
-participant RPC
-participant PostgreSQL
+title ChainFlow - System Sequence Diagram
 
-User -> CLI: run fetch command
-CLI -> CLI: Parse parameters
-CLI -> Fetcher: fetch_logs(network, start, end)
-Fetcher -> RPC: eth_getLogs request
-RPC --> Fetcher: logs response
-Fetcher -> CLI: decoded & normalized logs
-CLI -> PostgreSQL: insert batch (conflict-safe)
-CLI -> PostgreSQL: update fetch_progress
-CLI --> User: fetch complete
+actor "Data Engineer" as DE
+participant "CLI" as CLI
+participant "FetcherClient" as Fetcher
+participant "Infura RPC" as RPC
+participant "Classifier" as Classifier
+participant "External APIs" as ExtAPI
+participant "GraphService" as Graph
+participant "PostgreSQL" as PG
+actor "Analyst" as Analyst
+participant "Browser" as Browser
+participant "FastAPI" as Web
+
+== Phase 1: Fetch ==
+
+DE -> CLI : fetch --network ethereum --auto
+CLI -> PG : get_latest_processed_block(ethereum)
+PG --> CLI : block N
+CLI -> RPC : eth_blockNumber
+RPC --> CLI : latest block M
+CLI -> Fetcher : fetch_logs(from=N, to=M, tokens)
+loop adaptive chunks
+    Fetcher -> RPC : eth_getLogs(fromBlock, toBlock, topics)
+    RPC --> Fetcher : raw log array
+    Fetcher -> Fetcher : decode_log() × n
+    Fetcher -> PG : insert_transfers_batch(decoded_logs)
+    Fetcher -> PG : insert_fetch_progress(chunk)
+end
+
+== Phase 2: Classify ==
+
+DE -> CLI : classify_addresses --network ethereum
+CLI -> ExtAPI : Dune Analytics (CEX wallets)
+ExtAPI --> CLI : CEX address list
+CLI -> PG : UPDATE transfers SET from_entity_class
+CLI -> ExtAPI : 8004scan.io (x402 agents)
+ExtAPI --> CLI : agent address list
+CLI -> PG : UPDATE is_from_x402 = true
+
+== Phase 3: Graph ==
+
+DE -> CLI : graph --network ethereum
+CLI -> Graph : run_pagerank_graph(ethereum)
+Graph -> PG : SELECT from_address, to_address, SUM(value)
+PG --> Graph : edge list
+Graph -> Graph : build_graph(edges)
+Graph -> Graph : compute_pagerank(G)
+Graph -> PG : upsert_pagerank_scores(...)
+Graph -> PG : upsert_pagerank_edges(...)
+
+== Phase 4: Dashboard ==
+
+DE -> Web : uvicorn src.web.main:app
+Analyst -> Browser : http://localhost:8000/graph
+Browser -> Web : GET /api/graph/scores?network=ethereum
+Web -> PG : SELECT pagerank_scores + node labels
+PG --> Web : scores + labels
+Web --> Browser : JSON (nodes, edges, scores)
+Browser -> Browser : render D3.js force graph
+
 @enduml

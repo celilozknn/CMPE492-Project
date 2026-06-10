@@ -1,23 +1,45 @@
 @startuml
-title Blockchain Stablecoin Flow - Use Case Diagram
+title ChainFlow - System Use Case Diagram
 
 left to right direction
 skinparam packageStyle rectangle
 
-actor User
-actor Analyst
+actor "Data Engineer" as DE
+actor "Analyst" as Analyst
 
-rectangle "Stablecoin Transfer Fetch System" {
+rectangle "ChainFlow System" {
+    ' Fetch use cases
     usecase "Fetch Latest Data" as UC1
-    usecase "Fetch Custom Interval" as UC2
+    usecase "Fetch Custom Block Range" as UC2
     usecase "Resume After Failure" as UC3
-    usecase "Export for Analysis" as UC4
+
+    ' Classify use cases
+    usecase "Classify Addresses\n(CEX / Bridge / Mint-Burn)" as UC4
+    usecase "Classify x402 AI Agents" as UC5
+
+    ' Graph use cases
+    usecase "Run PageRank Analysis" as UC6
+
+    ' Web dashboard use cases
+    usecase "Explore PageRank Graph" as UC7
+    usecase "Explore Wallet Flow" as UC8
+    usecase "View Ecosystem Overview" as UC9
 }
 
-User --> UC1
-User --> UC2
-UC3 --> UC1 : extends
-UC3 --> UC2 : extends
-Analyst --> UC4
+DE --> UC1
+DE --> UC2
+DE --> UC3
+DE --> UC4
+DE --> UC5
+DE --> UC6
+
+UC3 .> UC1 : <<extends>>
+UC3 .> UC2 : <<extends>>
+
+Analyst --> UC7
+Analyst --> UC8
+Analyst --> UC9
+
+UC7 .> UC6 : <<requires>>
 
 @enduml

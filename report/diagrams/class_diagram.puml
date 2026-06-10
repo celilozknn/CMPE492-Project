@@ -1,71 +1,130 @@
 @startuml
-title Blockchain Stablecoin Fetch System - Class Diagram
+title ChainFlow - Class Diagram
+
+skinparam classAttributeIconSize 0
 
 ' Enums
-class Networks {
-    +ETHEREUM
-    +POLYGON
-    +OPTIMISM
-    +ARBITRUM
-    +AVALANCHE
+enum Networks {
+    ETHEREUM
+    POLYGON
+    OPTIMISM
+    ARBITRUM
+    AVALANCHE
 }
 
-class StableCoins {
-    +USDT
-    +USDC
-    +DAI
-    +XAUT
+enum StableCoins {
+    USDT
+    USDC
+    DAI
+    XAUT
 }
 
-' Dataclasses / Tables
+' DB Entities
+class Transfers {
+    +tx_hash: str
+    +log_index: int
+    +block_number: int
+    +block_hash: str
+    +block_timestamp: int
+    +network: str
+    +token_symbol: str
+    +from_address: str
+    +to_address: str
+    +value: float
+    +raw_value: int
+    +from_entity_class: list[str]
+    +to_entity_class: list[str]
+    +is_from_x402: bool
+    +is_to_x402: bool
+    +event_class: str
+}
+
 class FetchProgress {
-    -network: str
-    -chunk_start: int
-    -chunk_end: int
-    -log_count: int
-    -completed_at: datetime
+    +network: str
+    +chunk_start: int
+    +chunk_end: int
+    +log_count: int
+    +completed_at: datetime
     +to_dict(): dict
 }
 
-class Transfers {
-    -tx_hash: str
-    -log_index: int
-    -block_number: int
-    -block_hash: str
-    -from_address: str
-    -to_address: str
-    -value: float
-    -raw_value: int
-    -token_symbol: str
-    -token_address: str
-    +unique_constraint(tx_hash, log_index, network)
+class PageRankScore {
+    +network: str
+    +token_symbol: str
+    +address: str
+    +score: float
+    +updated_at: datetime
 }
 
-' Helpers module
+' Helpers
 class Helpers {
-    +get_token_address(network, token)
-    +get_decimals(network, token)
-    +get_chain_id(network)
-    +hex_to_int(value)
-    +int_to_hex(value)
-    +is_erc20_transfer(log, debug)
-    +get_logger(name, level)
-    +pretty_seconds(seconds)
+    +get_token_address(network, token): str
+    +get_decimals(network, token): int
+    +get_chain_id(network): int
+    +hex_to_int(value): int
+    +is_erc20_transfer(log): bool
+    +get_logger(name): Logger
 }
 
-' Fetcher module
+' Fetcher
 class FetcherClient {
-    +get_latest_block(network, logger)
-    +fetch_logs(url, from_block, to_block, token_address, topics, logger)
-    +decode_log(token_map, network, log, logger)
-    +run_fetcher(network, start_block, end_block, request_step)
+    +get_latest_block(network): int
+    +fetch_logs(url, from_block, to_block, ...): list
+    +decode_log(token_map, network, log): dict
+    +run_fetcher(network, start, end, step)
 }
 
-' Database module
+' Classifiers
+class AddressClassifierClient {
+    +classify_mint_burn(network): void
+    +classify_cex_addresses(network, update): void
+    +classify_bridge_addresses(network, update): void
+    +classify_address_labels(network, update): void
+}
+
+class AgentClassifierClient {
+    +fetch_x402_agents(network, limit): set[str]
+    +save_x402_agents(network, agents): void
+    +load_x402_agents(network): set[str]
+    +classify_x402_agents(network): set[str]
+}
+
+' Graph
+class GraphService {
+    +load_edges(network, token_symbol): list
+    +run_pagerank_graph(network, token, top_n): dict
+    +get_pagerank_scores(network, token, limit): list
+    +get_edges(network, token, nodes): list
+    +get_node_labels(network, token, nodes): dict
+}
+
+class PageRankCompute {
+    +build_graph(edges): DiGraph
+    +compute_pagerank(G, damping): dict
+    +top_k(ranks, k): list
+}
+
+' Database
 class DB {
-    +insert_transfers_batch(decoded_logs, batch_size)
-    +insert_fetch_progress(progress)
-    +get_latest_processed_block_from_db(network)
+    +insert_transfers_batch(logs, batch_size): void
+    +insert_fetch_progress(progress): void
+    +get_latest_processed_block(network): int
+    +update_event_flags(network, zero_addr): void
+    +update_entity_class(network, addrs, label): void
+    +update_x402_flags(network, agents): void
+    +upsert_pagerank_scores(network, token, ranks): void
+    +upsert_pagerank_edges(network, token, edges): void
+}
+
+' Web
+class WebApp {
+    +graph_router: APIRouter
+    +flow_router: APIRouter
+    +ecosystem_router: APIRouter
+    +meta_router: APIRouter
+    +GET /graph
+    +GET /flow
+    +GET /ecosystem
 }
 
 ' Relationships
@@ -73,7 +132,17 @@ FetcherClient --> Helpers : uses
 FetcherClient --> Networks : reads
 FetcherClient --> StableCoins : reads
 FetcherClient --> DB : writes
+
+AddressClassifierClient --> DB : updates entity labels
+AgentClassifierClient --> DB : updates x402 flags
+
+GraphService --> PageRankCompute : delegates
+GraphService --> DB : reads/writes
+
+WebApp --> DB : reads via API routes
+
 DB --> FetchProgress : stores
 DB --> Transfers : stores
+DB --> PageRankScore : stores
 
 @enduml
